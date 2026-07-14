@@ -7,7 +7,7 @@
         },
         {
             "type": "ExpansionPanel",
-            "caption": "Messplan",
+            "caption": "Messplan (Sensor)",
             "items": [
                 {
                     "type": "Select",
@@ -38,13 +38,7 @@
                     "caption": "Config-Check-in alle X Minuten (0 = aus)",
                     "minimum": 0,
                     "maximum": 1440
-                }
-            ]
-        },
-        {
-            "type": "ExpansionPanel",
-            "caption": "Messung",
-            "items": [
+                },
                 {
                     "type": "NumberSpinner",
                     "name": "OffsetCm",
@@ -59,12 +53,80 @@
                     "caption": "Einzelmessungen pro Zyklus (Median)",
                     "minimum": 3,
                     "maximum": 50
+                },
+                {
+                    "type": "Label",
+                    "caption": "Änderungen mit 'Konfiguration an Sensor senden' übertragen (Sensor übernimmt sie beim nächsten Aufwachen)."
                 }
             ]
         },
         {
-            "type": "Label",
-            "caption": "Wichtig: Änderungen erst mit 'Konfiguration an Sensor senden' übertragen. Der Sensor übernimmt sie beim nächsten Aufwachen (Messung oder Check-in)."
+            "type": "ExpansionPanel",
+            "caption": "Automatisches Nachfüllen",
+            "items": [
+                {
+                    "type": "CheckBox",
+                    "name": "AutoRefill",
+                    "caption": "Automatisches Nachfüllen aktiv"
+                },
+                {
+                    "type": "SelectScript",
+                    "name": "RefillScriptID",
+                    "caption": "Start-Skript (startet Hunter-Zone für $_IPS['DURATION'] Minuten)"
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "PoolArea", "caption": "Wasseroberfläche (m²)", "digits": 2 },
+                        { "type": "NumberSpinner", "name": "FlowRate", "caption": "Zuflussrate (l/min)", "digits": 1 }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "TargetLevelCm", "caption": "Ziel-Abstand Sensor→Wasser (cm)", "digits": 1 },
+                        { "type": "NumberSpinner", "name": "ToleranceCm", "caption": "Toleranz (cm)", "digits": 1 }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Sicherheit (Nachfüllen)",
+            "items": [
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "MaxRunMin", "caption": "Max. Minuten pro Portion", "minimum": 1, "maximum": 240 },
+                        { "type": "NumberSpinner", "name": "DailyBudgetMin", "caption": "Tagesbudget (Minuten)", "minimum": 1, "maximum": 600 }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "MaxAgeMin", "caption": "Max. Messwert-Alter (Minuten)", "minimum": 1, "maximum": 1440 },
+                        { "type": "NumberSpinner", "name": "VerifyFactor", "caption": "Erfolgskontrolle: Mindest-Anteil", "digits": 2, "minimum": 0.1, "maximum": 1 }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "PlausMinCm", "caption": "Plausibel ab (cm)", "digits": 1 },
+                        { "type": "NumberSpinner", "name": "PlausMaxCm", "caption": "Plausibel bis (cm)", "digits": 1 }
+                    ]
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "CalibMinutes",
+                    "caption": "Dauer Kalibrierlauf (Minuten)",
+                    "minimum": 1,
+                    "maximum": 60
+                },
+                {
+                    "type": "Label",
+                    "caption": "Prinzip: Es wird immer nur eine zeitbegrenzte Portion beauftragt - der Hunter stoppt selbst (Totmann-Prinzip). Budget, Plausibilität und Erfolgskontrolle sichern zusätzlich ab."
+                }
+            ]
         }
     ],
     "actions": [
@@ -74,14 +136,34 @@
             "onClick": "PSK_SendConfig($id);"
         },
         {
-            "type": "Button",
-            "caption": "Konfig-Portal öffnen (nächstes Aufwachen)",
-            "onClick": "PSK_RequestPortal($id);"
+            "type": "RowLayout",
+            "items": [
+                {
+                    "type": "Button",
+                    "caption": "Konfig-Portal öffnen (nächstes Aufwachen)",
+                    "onClick": "PSK_RequestPortal($id);"
+                },
+                {
+                    "type": "Button",
+                    "caption": "OTA-Fenster öffnen (nächstes Aufwachen)",
+                    "onClick": "PSK_RequestOta($id);"
+                }
+            ]
         },
         {
-            "type": "Button",
-            "caption": "OTA-Fenster öffnen (nächstes Aufwachen)",
-            "onClick": "PSK_RequestOta($id);"
+            "type": "RowLayout",
+            "items": [
+                {
+                    "type": "Button",
+                    "caption": "Kalibrierlauf starten (Zuflussrate messen)",
+                    "onClick": "PSK_StartCalibration($id);"
+                },
+                {
+                    "type": "Button",
+                    "caption": "Nachfüll-Sperre quittieren",
+                    "onClick": "PSK_AcknowledgeLock($id);"
+                }
+            ]
         }
     ],
     "status": []

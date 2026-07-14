@@ -51,6 +51,40 @@ maximal `CheckinMin` Minuten (Standard 240).
   wach und ist in der Arduino IDE als Netzwerk-Port `pool-skimmer-sensor`
   flashbar (kein USB-Kabel nötig).
 
+## Automatisches Nachfüllen (ab v1.1)
+
+Prinzip: **dosieren statt regeln.** Das Modul berechnet aus Ziel-Pegel,
+Pooloberfläche und Zuflussrate eine **zeitbegrenzte Portion** und startet sie
+über ein Benutzer-Skript (Hunter-Zone für X Minuten). Der Hunter stoppt
+hardwareseitig – es ist kein Stopp-Signal nötig (Totmann-Prinzip).
+
+Sicherheitsebenen:
+1. Hunter-Zeitlimit (Hardware)
+2. Max. Minuten pro Portion
+3. Tagesbudget (Minuten/Tag)
+4. Frische- + Plausibilitätsprüfung des Messwerts (`stale`, Alter, Messband)
+5. Erfolgskontrolle: steigt der Pegel nach einer Portion nicht wie erwartet
+   → Status **GESPERRT** + Log-Warnung, bis manuell quittiert wird
+
+**Start-Skript:** Ein kleines PHP-Skript, das die Hunter-Zone startet.
+Das Modul ruft es mit `$_IPS['DURATION']` (Minuten) auf, z. B.:
+
+```php
+<?php
+// Beispiel: Hydrawise-Zone "Pool" fuer $_IPS['DURATION'] Minuten starten
+$minuten = (int)($_IPS['DURATION'] ?? 0);
+if ($minuten <= 0) return;
+// >>> hier deinen vorhandenen Zonen-Start einsetzen, z.B.:
+// HYDRA_RunZone(12345, $minuten * 60);
+IPS_LogMessage('PoolRefill', "Zone Pool fuer $minuten min gestartet");
+```
+
+**Kalibrierlauf:** Button im Formular. Startet eine Portion fester Länge und
+berechnet aus dem Pegelanstieg bei der nächsten Messung die Zuflussrate
+(Variable „Gemessene Zuflussrate") – den Wert dann als Property „Zuflussrate"
+eintragen. Für schnelles Feedback den Sensor vorher in den Intervall-Modus
+(z. B. 5 min) schalten.
+
 ## Hinweise
 
 - Der Sensor öffnet das Konfig-Portal auch **automatisch**, wenn er den
