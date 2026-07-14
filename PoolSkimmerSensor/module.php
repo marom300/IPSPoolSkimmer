@@ -37,9 +37,10 @@ class PoolSkimmerSensor extends IPSModule
     {
         parent::ApplyChanges();
 
-        // Empfangsfilter: nur unser Basis-Topic (Slashes im JSON escaped)
-        $topicRegex = str_replace('/', '\\\\/', $this->ReadPropertyString('BaseTopic'));
-        $this->SetReceiveDataFilter('.*' . $topicRegex . '.*');
+        // Empfangsfilter robust gegen (nicht) escapte Slashes im JSON:
+        // Topic-Segmente mit .* verbinden -> matcht "pool/skimmer" wie auch "pool\/skimmer"
+        $parts = array_map('preg_quote', explode('/', $this->ReadPropertyString('BaseTopic')));
+        $this->SetReceiveDataFilter('.*' . implode('.*', $parts) . '.*');
 
         // --- Profile ---
         $this->ensureProfileFloat('PSK.cm', ' cm', 1);
