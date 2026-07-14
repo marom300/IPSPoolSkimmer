@@ -64,6 +64,15 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterPropertyFloat('VerifyFactor', 0.4);       // mind. 40% des erwarteten Anstiegs
         $this->RegisterPropertyInteger('CalibMinutes', 10);      // Dauer Kalibrierlauf
 
+        // --- Dashboard: verknuepfte Fremd-Variablen (z.B. Violet-Steuerung) ---
+        $this->RegisterPropertyInteger('DashWaterTemp', 0);
+        $this->RegisterPropertyInteger('DashPumpStage', 0);
+        $this->RegisterPropertyInteger('DashPumpRpm', 0);
+        $this->RegisterPropertyInteger('DashPh', 0);
+        $this->RegisterPropertyInteger('DashRedox', 0);
+        $this->RegisterPropertyInteger('DashExtra1', 0);
+        $this->RegisterPropertyInteger('DashExtra2', 0);
+
         // --- interne Zustaende ---
         $this->RegisterAttributeString('BudgetDate', '');
         $this->RegisterAttributeFloat('PreRefillCm', -1);        // Abstand vor der Portion
@@ -113,6 +122,85 @@ class PoolSkimmerSensor extends IPSModule
         if (!$this->ReadPropertyBoolean('AutoRefill') && $this->GetValue('RefillState') !== self::ST_LOCKED) {
             $this->SetValue('RefillState', self::ST_OFF);
         }
+
+        $this->enableArchiving();
+    }
+
+    /**
+     * Aktiviert das Archiv-Logging fuer alle relevanten Statusvariablen
+     * automatisch (einmalig; bereits geloggte Variablen bleiben unangetastet).
+     */
+    private function enableArchiving(): void
+    {
+        $archList = IPS_GetInstanceListByModuleID('{43192F0B-135B-4CE7-A0A7-1475603F3060}');
+        if (count($archList) === 0) {
+            return;
+        }
+        $arch = $archList[0];
+
+        $idents = ['WaterLevel', 'BatteryV', 'BatteryPct', 'MissingCm', 'MissingLiters',
+                   'TodayRefillMin', 'RSSI', 'RefillState', 'Stale'];
+        $changed = false;
+        foreach ($idents as $ident) {
+            $vid = @$this->GetIDForIdent($ident);
+            if ($vid === false || $vid <= 0) {
+                continue;
+            }
+            if (!AC_GetLoggingStatus($arch, $vid)) {
+                AC_SetLoggingStatus($arch, $vid, true);
+                AC_SetAggregationType($arch, $vid, 0);   // Standard
+                $changed = true;
+            }
+        }
+        if ($changed) {
+            IPS_ApplyChanges($arch);
+            $this->SendDebug('ARCHIV', 'Logging fuer Statusvariablen aktiviert', 0);
+        }
+    }
+
+    /**
+     * Liefert alle Dashboard-Daten als JSON: eigene Statusvariablen plus
+     * die im Formular verknuepften Fremd-Variablen (Violet etc.).
+     * Aufruf z.B. per JSON-RPC: PSK_GetDashboardData(<InstanzID>)
+     */
+    public function GetDashboardData(): string
+    {
+        $out = [
+            'level_cm'      => $this->GetValue('WaterLevel'),
+            'missing_cm'    => $this->GetValue('MissingCm'),
+            'missing_l'     => $this->GetValue('MissingLiters'),
+            'battery_v'     => $this->GetValue('BatteryV'),
+            'battery_pct'   => $this->GetValue('BatteryPct'),
+            'stale'         => $this->GetValue('Stale'),
+            'last_seen'     => $this->GetValue('LastSeen'),
+            'rssi'          => $this->GetValue('RSSI'),
+            'fw'            => $this->GetValue('FwVersion'),
+            'refill_state'  => $this->GetValue('RefillState'),
+            'refill_today'  => $this->GetValue('TodayRefillMin'),
+            'refill_last'   => $this->GetValue('LastRefill'),
+            'refill_info'   => $this->GetValue('RefillInfo'),
+            'flow_measured' => $this->GetValue('CalcFlowRate'),
+            'ts'            => time()
+        ];
+
+        $links = [
+            'water_temp' => 'DashWaterTemp',
+            'pump_stage' => 'DashPumpStage',
+            'pump_rpm'   => 'DashPumpRpm',
+            'ph'         => 'DashPh',
+            'redox'      => 'DashRedox',
+            'extra1'     => 'DashExtra1',
+            'extra2'     => 'DashExtra2'
+        ];
+        foreach ($links as $key => $prop) {
+            $vid = $this->ReadPropertyInteger($prop);
+            if ($vid > 0 && IPS_VariableExists($vid)) {
+                $out[$key] = GetValue($vid);
+                $out[$key . '_str'] = GetValueFormatted($vid);
+            }
+        }
+
+        return json_encode($out);
     }
 
     // ================= Empfang =================

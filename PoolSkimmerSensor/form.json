@@ -127,6 +127,23 @@
                     "caption": "Prinzip: Es wird immer nur eine zeitbegrenzte Portion beauftragt - der Hunter stoppt selbst (Totmann-Prinzip). Budget, Plausibilität und Erfolgskontrolle sichern zusätzlich ab."
                 }
             ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Dashboard-Verknüpfungen (optional, z.B. Violet-Steuerung)",
+            "items": [
+                { "type": "SelectVariable", "name": "DashWaterTemp", "caption": "Wassertemperatur" },
+                { "type": "SelectVariable", "name": "DashPumpStage", "caption": "Pumpenstufe" },
+                { "type": "SelectVariable", "name": "DashPumpRpm", "caption": "Pumpen-Drehzahl (RPM)" },
+                { "type": "SelectVariable", "name": "DashPh", "caption": "pH-Wert" },
+                { "type": "SelectVariable", "name": "DashRedox", "caption": "Redox" },
+                { "type": "SelectVariable", "name": "DashExtra1", "caption": "Zusatzwert 1" },
+                { "type": "SelectVariable", "name": "DashExtra2", "caption": "Zusatzwert 2" },
+                {
+                    "type": "Label",
+                    "caption": "Diese Werte liefert das Modul gebündelt über PSK_GetDashboardData() an das (kommende) Pool-Dashboard."
+                }
+            ]
         }
     ],
     "actions": [
