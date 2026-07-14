@@ -1,0 +1,88 @@
+{
+    "elements": [
+        {
+            "type": "ValidationTextBox",
+            "name": "BaseTopic",
+            "caption": "Basis-Topic (wie in der Sensor-Firmware)"
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Messplan",
+            "items": [
+                {
+                    "type": "Select",
+                    "name": "Mode",
+                    "caption": "Modus",
+                    "options": [
+                        { "caption": "Täglich zu fester Uhrzeit", "value": "daily" },
+                        { "caption": "Intervall (alle X Minuten)", "value": "interval" }
+                    ]
+                },
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "NumberSpinner", "name": "WakeHour", "caption": "Mess-Stunde", "minimum": 0, "maximum": 23 },
+                        { "type": "NumberSpinner", "name": "WakeMin", "caption": "Mess-Minute", "minimum": 0, "maximum": 59 }
+                    ]
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "IntervalMin",
+                    "caption": "Mess-Intervall (Minuten, nur Modus Intervall)",
+                    "minimum": 1,
+                    "maximum": 1440
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "CheckinMin",
+                    "caption": "Config-Check-in alle X Minuten (0 = aus)",
+                    "minimum": 0,
+                    "maximum": 1440
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
+            "caption": "Messung",
+            "items": [
+                {
+                    "type": "NumberSpinner",
+                    "name": "OffsetCm",
+                    "caption": "Kalibrier-Offset (cm)",
+                    "digits": 1,
+                    "minimum": -100,
+                    "maximum": 100
+                },
+                {
+                    "type": "NumberSpinner",
+                    "name": "NMeas",
+                    "caption": "Einzelmessungen pro Zyklus (Median)",
+                    "minimum": 3,
+                    "maximum": 50
+                }
+            ]
+        },
+        {
+            "type": "Label",
+            "caption": "Wichtig: Änderungen erst mit 'Konfiguration an Sensor senden' übertragen. Der Sensor übernimmt sie beim nächsten Aufwachen (Messung oder Check-in)."
+        }
+    ],
+    "actions": [
+        {
+            "type": "Button",
+            "caption": "Konfiguration an Sensor senden",
+            "onClick": "PSK_SendConfig($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "Konfig-Portal öffnen (nächstes Aufwachen)",
+            "onClick": "PSK_RequestPortal($id);"
+        },
+        {
+            "type": "Button",
+            "caption": "OTA-Fenster öffnen (nächstes Aufwachen)",
+            "onClick": "PSK_RequestOta($id);"
+        }
+    ],
+    "status": []
+}

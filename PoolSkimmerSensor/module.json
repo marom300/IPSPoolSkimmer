@@ -1,0 +1,17 @@
+{
+    "id": "{B4E7A9C2-51D3-4F86-8E2A-7C90D1F45B6E}",
+    "name": "PoolSkimmerSensor",
+    "type": 3,
+    "vendor": "",
+    "aliases": [
+        "Pool Skimmer Füllstandssensor"
+    ],
+    "parentRequirements": [
+        "{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}"
+    ],
+    "childRequirements": [],
+    "implemented": [
+        "{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}"
+    ],
+    "prefix": "PSK"
+}
