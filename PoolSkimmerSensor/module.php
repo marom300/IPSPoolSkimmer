@@ -14,13 +14,13 @@ declare(strict_types=1);
 class PoolSkimmerSensor extends IPSModule
 {
     // Datenfluss-GUIDs des IP-Symcon MQTT Servers
-    private const GUID_MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}'; // an MQTT Server senden
-    private const GUID_MQTT_RX = '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}'; // vom MQTT Server empfangen
+    private const GUID_MQTT_TX = '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}'; // an MQTT Server senden (SendDataToParent)
+    private const GUID_MQTT_RX = '{7F7632D9-FA40-4F38-8DEA-C83CD4325A32}'; // vom MQTT Server empfangen (ReceiveData)
 
     public function Create()
     {
         parent::Create();
-        $this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}'); // MQTT Server
+        // Parent (MQTT Server/Client) wird ueber parentRequirements + Schnittstellendialog gewaehlt.
 
         // --- Konfigurations-Properties (werden per Button an den Sensor gesendet) ---
         $this->RegisterPropertyString('BaseTopic', 'pool/skimmer');
