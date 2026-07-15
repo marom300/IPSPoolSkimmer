@@ -68,8 +68,7 @@ Port, den auch der Sensor anspricht (Standard im Projekt: 1889).
 |---|---|---|
 | **Automatisches Nachfüllen aktiv** | aus | Hauptschalter. Solange aus, misst und meldet das Modul nur, füllt aber **nie** nach. Erst einschalten, wenn Ziel-Abstand und Zuflussrate korrekt eingestellt und getestet sind. |
 | **Start-Skript** | – | PHP-Skript, das die Nachfüll-Zone am Bewässerungscomputer startet. Das Modul ruft es mit `$_IPS['DURATION']` (Laufzeit in Minuten) auf. Vorlage: `firmware/symcon_refill_start.php` bzw. Abschnitt „Start-Skript" unten. |
-| **Wasseroberfläche (m²)** | 22,75 | Fläche der Wasseroberfläche. Daraus wird cm → Liter berechnet: 1 cm auf 1 m² = 10 l. Bei 22,75 m² also 227,5 l pro cm. |
-| **Zuflussrate (l/min)** | 20 | Wie schnell dein Zulauf füllt. Bestimmt die Portionsdauer. **Per Kalibrierlauf ermitteln** und hier eintragen. |
+| **Wasseroberfläche (m²)** | 22,75 | Fläche der Wasseroberfläche. Daraus wird cm → Liter berechnet: 1 cm auf 1 m² = 10 l. Bei 22,75 m² also 227,5 l pro cm. **Nur die Oberfläche nötig** – Volumen/Tiefe sind irrelevant. |
 | **Ziel-Abstand Sensor→Wasser (cm)** | 10 | Der Abstandswert, den der Sensor bei **vollem** Pool (Wunsch-Pegel) misst. Ist der gemessene Abstand größer, fehlt Wasser. Nach dem Einbau einmalig ablesen und eintragen. |
 | **Toleranz (cm)** | 0,5 | Totband. Erst wenn mehr als diese Differenz fehlt, wird nachgefüllt – verhindert ständiges Nachdosieren bei minimalem Verdunsten/Messrauschen. |
 
@@ -130,7 +129,7 @@ Aufruf, egal woher die Werte stammen.
 | **Nachfüll-Status** | berechnet | Automatik aus / Bereit / Portion läuft / Warte auf Kontrolle / GESPERRT / Tagesbudget erreicht. |
 | **Nachfüllzeit heute** | berechnet | Bereits heute verbrauchte Nachfüllminuten (gegen Tagesbudget). |
 | **Letzte Nachfüllung** | berechnet | Zeitstempel der letzten gestarteten Portion. |
-| **Gemessene Zuflussrate** | Kalibrierlauf | Ergebnis des letzten Kalibrierlaufs in l/min. |
+| **Zuflussrate (kalibriert)** | Kalibrierlauf | Vom Kalibrierlauf ermittelte Füllrate in l/min. Diesen Wert nutzt die Nachfüll-Logik direkt – ist er 0, wird nicht nachgefüllt (erst kalibrieren). |
 | **Nachfüll-Protokoll** | berechnet | Letzte Aktion/Meldung der Nachfüll-Logik im Klartext. |
 
 Das Logging ins Archiv aktiviert das Modul beim Übernehmen der Einstellungen
@@ -172,11 +171,31 @@ if ($aktionID !== false) {
 }
 ```
 
-### Kalibrierlauf
+### Kalibrierlauf (vollautomatisch)
 
-Button „Kalibrierlauf starten" → Portion fester Länge → Modul misst den
-Pegelanstieg bei der nächsten Messung → berechnet l/min → Variable „Gemessene
-Zuflussrate". Diesen Wert als Parameter „Zuflussrate" eintragen.
+Du musst die Zuflussrate **nicht selbst messen**. Ablauf:
+
+1. Sensor in den **Intervall-Modus** (z. B. 5 min) stellen und senden – damit die
+   Kontrollmessung nach dem Lauf zeitnah kommt (im Täglich-Modus käme sie erst
+   am nächsten Messtermin). Das Modul weist beim Start darauf hin.
+2. Button **„Kalibrierlauf starten"**. Das Modul merkt sich den aktuellen
+   Abstand und startet die Zone für die eingestellte Dauer.
+3. Nach Ablauf misst der Sensor erneut. Das Modul rechnet aus dem Pegelanstieg
+   die tatsächliche Zuflussrate:
+
+   **l/min = Pegelanstieg [cm] × Wasseroberfläche [m²] × 10 ÷ Laufminuten**
+
+4. Das Ergebnis landet **automatisch** in der Statusvariable „Zuflussrate
+   (kalibriert)" – die die Nachfüll-Logik direkt nutzt. Es gibt **kein**
+   Eingabefeld für die Zuflussrate; du musst nichts von Hand messen oder
+   eintragen. Steigt der Pegel nicht plausibel (< 0,5 l/min hochgerechnet),
+   bleibt die Rate unverändert und es kommt eine Warnung.
+
+Solange nie kalibriert wurde (Rate = 0), füllt das Modul **nicht** nach,
+sondern meldet „bitte Kalibrierlauf starten".
+
+Es wird **nur die Wasseroberfläche** benötigt – Volumen/Tiefe des Beckens
+spielen keine Rolle, weil nur zählt, wie schnell der Pegel oben steigt.
 
 ---
 
@@ -185,7 +204,7 @@ Zuflussrate". Diesen Wert als Parameter „Zuflussrate" eintragen.
 1. Sensor im Skimmer montieren, WLAN/Empfang (RSSI) prüfen.
 2. **Ziel-Abstand** bei vollem Pool ablesen und eintragen.
 3. **Start-Skript** anlegen (Zonen-ID eintragen) und im Modul auswählen.
-4. **Kalibrierlauf** → Zuflussrate übernehmen.
+4. **Kalibrierlauf** starten → Zuflussrate wird automatisch ermittelt.
 5. Plausibilitätsband an den realen Messbereich anpassen.
 6. Messplan auf Produktiv (z. B. Täglich 21:00, Check-in 240) senden.
 7. **Automatisches Nachfüllen aktivieren.**

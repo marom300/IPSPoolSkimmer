@@ -86,11 +86,11 @@
                     "caption": "Start-Skript (startet Hunter-Zone für $_IPS['DURATION'] Minuten)"
                 },
                 {
-                    "type": "RowLayout",
-                    "items": [
-                        { "type": "NumberSpinner", "name": "PoolArea", "caption": "Wasseroberfläche (m²)", "digits": 2 },
-                        { "type": "NumberSpinner", "name": "FlowRate", "caption": "Zuflussrate (l/min)", "digits": 1 }
-                    ]
+                    "type": "NumberSpinner", "name": "PoolArea", "caption": "Wasseroberfläche (m²)", "digits": 2
+                },
+                {
+                    "type": "Label",
+                    "caption": "Die Zuflussrate misst der Kalibrierlauf selbst (Button unten) und schreibt sie in die Statusvariable 'Zuflussrate (kalibriert)'. Du musst nichts von Hand eintragen."
                 },
                 {
                     "type": "RowLayout",

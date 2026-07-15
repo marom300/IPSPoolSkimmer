@@ -53,7 +53,8 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterPropertyFloat('PoolArea', 22.75);         // m^2 Wasseroberflaeche
         $this->RegisterPropertyFloat('TargetLevelCm', 10.0);     // SOLL-Abstand Sensor->Wasser (voll)
         $this->RegisterPropertyFloat('ToleranceCm', 0.5);        // darunter keine Aktion
-        $this->RegisterPropertyFloat('FlowRate', 20.0);          // l/min (per Kalibrierlauf ermitteln)
+        // Zuflussrate ist KEIN Eingabewert -> ermittelt der Kalibrierlauf selbst
+        // (Statusvariable 'CalcFlowRate'). Kein manuelles Messen/Eintragen.
         $this->RegisterPropertyInteger('RefillScriptID', 0);     // Skript: startet Hunter-Zone fuer $_IPS['DURATION'] min
 
         // --- Nachfuellen: Sicherheitsebenen ---
@@ -117,7 +118,7 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterVariableInteger('RefillState', 'Nachfüll-Status', 'PSK.RefillState', 120);
         $this->RegisterVariableInteger('TodayRefillMin', 'Nachfüllzeit heute', 'PSK.min', 130);
         $this->RegisterVariableInteger('LastRefill', 'Letzte Nachfüllung', '~UnixTimestamp', 140);
-        $this->RegisterVariableFloat('CalcFlowRate', 'Gemessene Zuflussrate', 'PSK.lmin', 150);
+        $this->RegisterVariableFloat('CalcFlowRate', 'Zuflussrate (kalibriert)', 'PSK.lmin', 150);
         $this->RegisterVariableString('RefillInfo', 'Nachfüll-Protokoll', '', 160);
 
         if (!$this->ReadPropertyBoolean('AutoRefill') && $this->GetValue('RefillState') !== self::ST_LOCKED) {
@@ -307,8 +308,15 @@ class PoolSkimmerSensor extends IPSModule
             return;
         }
 
+        // --- Zuflussrate muss kalibriert sein ---
+        $flow = $this->GetValue('CalcFlowRate');
+        if ($flow <= 0.5) {
+            $this->SetValue('RefillState', self::ST_READY);
+            $this->warn('Zuflussrate noch nicht kalibriert - bitte Kalibrierlauf starten. Keine Nachfüllung.');
+            return;
+        }
+
         // --- Portion berechnen (dosieren, nicht regeln) ---
-        $flow = max(1.0, $this->ReadPropertyFloat('FlowRate'));
         $needMin = (int)ceil($missingCm * $this->litersPerCm() / $flow);
         $runMin  = min($needMin, $this->ReadPropertyInteger('MaxRunMin'));
 
@@ -331,7 +339,8 @@ class PoolSkimmerSensor extends IPSModule
             return;
         }
 
-        $expRise = $runMin * $this->ReadPropertyFloat('FlowRate') / $this->litersPerCm();
+        $flowNow = max(0.0, $this->GetValue('CalcFlowRate'));
+        $expRise = $runMin * $flowNow / $this->litersPerCm();
         $this->WriteAttributeFloat('PreRefillCm', $preLevelCm);
         $this->WriteAttributeFloat('ExpectedRiseCm', $expRise);
         $this->WriteAttributeInteger('PendingUntil', time() + $runMin * 60 + 300); // + 5 min Puffer
@@ -360,10 +369,15 @@ class PoolSkimmerSensor extends IPSModule
         $rise = $pre - $this->GetValue('WaterLevel');     // Abstand kleiner = Pegel hoeher
 
         if ($calib && $runMin > 0) {
-            $flow = max(0.0, $rise * $this->litersPerCm() / $runMin);
-            $this->SetValue('CalcFlowRate', round($flow, 1));
-            $this->info(sprintf('Kalibrierlauf: +%.1f cm in %d min -> %.1f l/min. Wert als "Zuflussrate" eintragen!',
-                $rise, $runMin, $flow));
+            $flow = round(max(0.0, $rise * $this->litersPerCm() / $runMin), 1);
+            if ($flow > 0.5) {
+                $this->SetValue('CalcFlowRate', $flow);   // = die Zuflussrate, die die Logik nutzt
+                $this->info(sprintf('Kalibrierlauf: +%.1f cm in %d min = %.1f l/min – als Zuflussrate übernommen.',
+                    $rise, $runMin, $flow));
+            } else {
+                $this->warn(sprintf('Kalibrierlauf: nur +%.1f cm Anstieg – nicht plausibel. Zuflussrate unverändert (Ventil/Zulauf prüfen).',
+                    $rise));
+            }
             $this->SetValue('RefillState', self::ST_READY);
             return;
         }
@@ -435,9 +449,12 @@ class PoolSkimmerSensor extends IPSModule
             echo 'Noch kein gültiger Messwert vorhanden.';
             return;
         }
+        if ($this->ReadPropertyString('Mode') !== 'interval') {
+            echo "HINWEIS: Sensor steht auf Täglich-Modus. Für die Kontrollmessung nach dem Lauf bitte vorher auf Intervall (z.B. 5 min) stellen und 'Konfiguration an Sensor senden' - sonst kommt das Ergebnis erst am nächsten Messtermin.\n\n";
+        }
         $min = max(1, $this->ReadPropertyInteger('CalibMinutes'));
         $this->startPortion($min, $level, true);
-        echo "Kalibrierlauf ({$min} min) gestartet. Ergebnis kommt mit der nächsten Messung NACH Ablauf - Sensor dafür am besten in den Intervall-Modus (z.B. 5 min) schalten.";
+        echo "Kalibrierlauf ({$min} min) gestartet. Das Ergebnis (l/min) wird bei der nächsten Messung nach Ablauf automatisch als Zuflussrate übernommen.";
     }
 
     // ================= intern =================
