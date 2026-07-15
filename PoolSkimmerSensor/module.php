@@ -122,6 +122,13 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterVariableInteger('LastCalib', 'Letzte Kalibrierung', '~UnixTimestamp', 155);
         $this->RegisterVariableString('RefillInfo', 'Nachfüll-Protokoll', '', 160);
 
+        // Migration: alten Variablennamen angleichen (RegisterVariable benennt
+        // bestehende Variablen nicht um).
+        $vid = @$this->GetIDForIdent('CalcFlowRate');
+        if ($vid && IPS_GetName($vid) === 'Gemessene Zuflussrate') {
+            IPS_SetName($vid, 'Zuflussrate (kalibriert)');
+        }
+
         if (!$this->ReadPropertyBoolean('AutoRefill') && $this->GetValue('RefillState') !== self::ST_LOCKED) {
             $this->SetValue('RefillState', self::ST_OFF);
         }
@@ -141,8 +148,11 @@ class PoolSkimmerSensor extends IPSModule
         }
         $arch = $archList[0];
 
+        // Alle sinnvoll auswertbaren Zahlen-/Bool-Variablen. Text-Variablen
+        // (Firmware, ConfigAck, RefillInfo) und reine Zeitstempel (LastSeen,
+        // LastRefill, LastCalib) werden bewusst NICHT geloggt.
         $idents = ['WaterLevel', 'BatteryV', 'BatteryPct', 'MissingCm', 'MissingLiters',
-                   'TodayRefillMin', 'RSSI', 'RefillState', 'Stale'];
+                   'TodayRefillMin', 'RSSI', 'RefillState', 'Stale', 'CalcFlowRate'];
         $changed = false;
         foreach ($idents as $ident) {
             $vid = @$this->GetIDForIdent($ident);

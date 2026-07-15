@@ -134,8 +134,12 @@ Aufruf, egal woher die Werte stammen.
 | **Nachfüll-Protokoll** | berechnet | Letzte Aktion/Meldung der Nachfüll-Logik im Klartext. |
 
 Das Logging ins Archiv aktiviert das Modul beim Übernehmen der Einstellungen
-selbst für die relevanten Variablen (bestehende Logging-Einstellungen bleiben
-unangetastet).
+selbst für die auswertbaren Zahlen-/Status-Variablen (Füllstand, Akku V/%,
+fehlender Pegel/Menge, Nachfüllzeit, RSSI, Nachfüll-Status, Stale, Zuflussrate).
+Bewusst **nicht** geloggt werden Text-Variablen (Firmware, Konfig-Bestätigung,
+Nachfüll-Protokoll) und reine Zeitstempel (zuletzt gesehen, letzte Nachfüllung,
+letzte Kalibrierung) – die ergeben als Archiv-Kurve keinen Sinn. Bestehende
+Logging-Einstellungen bleiben unangetastet.
 
 ---
 
