@@ -119,6 +119,7 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterVariableInteger('TodayRefillMin', 'Nachfüllzeit heute', 'PSK.min', 130);
         $this->RegisterVariableInteger('LastRefill', 'Letzte Nachfüllung', '~UnixTimestamp', 140);
         $this->RegisterVariableFloat('CalcFlowRate', 'Zuflussrate (kalibriert)', 'PSK.lmin', 150);
+        $this->RegisterVariableInteger('LastCalib', 'Letzte Kalibrierung', '~UnixTimestamp', 155);
         $this->RegisterVariableString('RefillInfo', 'Nachfüll-Protokoll', '', 160);
 
         if (!$this->ReadPropertyBoolean('AutoRefill') && $this->GetValue('RefillState') !== self::ST_LOCKED) {
@@ -182,6 +183,7 @@ class PoolSkimmerSensor extends IPSModule
             'refill_last'   => $this->GetValue('LastRefill'),
             'refill_info'   => $this->GetValue('RefillInfo'),
             'flow_measured' => $this->GetValue('CalcFlowRate'),
+            'calib_last'    => $this->GetValue('LastCalib'),
             'ts'            => time()
         ];
 
@@ -220,13 +222,13 @@ class PoolSkimmerSensor extends IPSModule
 
         switch ($topic) {
             case $base . '/json':
+                // Nur Messwerte + Nachfuell-Logik. Akku/RSSI/FW/LastSeen kommen
+                // AUSSCHLIESSLICH aus /status (bei jedem Aufwachen), sonst wuerde
+                // bei Mess-Zyklen alles doppelt ins Archiv geschrieben.
                 $j = json_decode($payload, true);
                 if (is_array($j)) {
-                    if (isset($j['level_cm']))    $this->SetValue('WaterLevel', (float)$j['level_cm']);
-                    if (isset($j['battery_v']))   $this->SetValue('BatteryV', (float)$j['battery_v']);
-                    if (isset($j['battery_pct'])) $this->SetValue('BatteryPct', (int)$j['battery_pct']);
-                    if (isset($j['stale']))       $this->SetValue('Stale', (bool)$j['stale']);
-                    if (isset($j['ts']))          $this->SetValue('LastSeen', (int)$j['ts']);
+                    if (isset($j['level_cm'])) $this->SetValue('WaterLevel', (float)$j['level_cm']);
+                    if (isset($j['stale']))    $this->SetValue('Stale', (bool)$j['stale']);
                     $this->updateMissing();
                     $this->evaluateRefill($j);
                 }
@@ -372,6 +374,7 @@ class PoolSkimmerSensor extends IPSModule
             $flow = round(max(0.0, $rise * $this->litersPerCm() / $runMin), 1);
             if ($flow > 0.5) {
                 $this->SetValue('CalcFlowRate', $flow);   // = die Zuflussrate, die die Logik nutzt
+                $this->SetValue('LastCalib', time());
                 $this->info(sprintf('Kalibrierlauf: +%.1f cm in %d min = %.1f l/min – als Zuflussrate übernommen.',
                     $rise, $runMin, $flow));
             } else {

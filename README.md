@@ -130,6 +130,7 @@ Aufruf, egal woher die Werte stammen.
 | **Nachfüllzeit heute** | berechnet | Bereits heute verbrauchte Nachfüllminuten (gegen Tagesbudget). |
 | **Letzte Nachfüllung** | berechnet | Zeitstempel der letzten gestarteten Portion. |
 | **Zuflussrate (kalibriert)** | Kalibrierlauf | Vom Kalibrierlauf ermittelte Füllrate in l/min. Diesen Wert nutzt die Nachfüll-Logik direkt – ist er 0, wird nicht nachgefüllt (erst kalibrieren). |
+| **Letzte Kalibrierung** | Kalibrierlauf | Zeitstempel des letzten erfolgreichen Kalibrierlaufs. |
 | **Nachfüll-Protokoll** | berechnet | Letzte Aktion/Meldung der Nachfüll-Logik im Klartext. |
 
 Das Logging ins Archiv aktiviert das Modul beim Übernehmen der Einstellungen
