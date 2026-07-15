@@ -82,6 +82,7 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterAttributeInteger('PendingUntil', 0);      // Portion laeuft bis (+Puffer)
         $this->RegisterAttributeBoolean('CalibPending', false);
         $this->RegisterAttributeInteger('CalibRunMin', 0);
+        $this->RegisterAttributeBoolean('ActiveRefill', false);  // Auffuell-Modus (enges Intervall)
     }
 
     public function ApplyChanges()
@@ -317,6 +318,7 @@ class PoolSkimmerSensor extends IPSModule
         $missingCm = $level - $this->ReadPropertyFloat('TargetLevelCm');
         if ($missingCm <= $this->ReadPropertyFloat('ToleranceCm')) {
             $this->SetValue('RefillState', self::ST_READY);
+            $this->exitActiveRefill('Zielpegel erreicht');   // ggf. zurück auf Normalplan
             return;
         }
 
@@ -336,9 +338,15 @@ class PoolSkimmerSensor extends IPSModule
         if ($rest <= 0) {
             $this->SetValue('RefillState', self::ST_BUDGET);
             $this->warn('Tagesbudget erschöpft - keine weitere Nachfüllung heute.');
+            $this->exitActiveRefill('Tagesbudget erreicht');   // Akku schonen bis morgen
             return;
         }
         $runMin = min($runMin, $rest);
+
+        // --- Auffüll-Modus: reicht eine Portion nicht, den Sensor eng takten ---
+        if ($needMin > $runMin) {
+            $this->enterActiveRefill($missingCm);
+        }
 
         $this->startPortion($runMin, $level, false);
     }
@@ -399,6 +407,7 @@ class PoolSkimmerSensor extends IPSModule
             $this->SetValue('RefillState', self::ST_LOCKED);
             $this->warn(sprintf('ERFOLGSKONTROLLE FEHLGESCHLAGEN: nur +%.1f cm statt ~%.1f cm. Nachfüllen GESPERRT - Ventil/Zulauf/Sensor prüfen, dann quittieren.',
                 $rise, $expRise));
+            $this->exitActiveRefill('gesperrt');   // eng takten macht gesperrt keinen Sinn
             return;
         }
 
@@ -470,14 +479,44 @@ class PoolSkimmerSensor extends IPSModule
         echo "Kalibrierlauf ({$min} min) gestartet. Das Ergebnis (l/min) wird bei der nächsten Messung nach Ablauf automatisch als Zuflussrate übernommen.";
     }
 
+    // ================= Auffüll-Modus =================
+    // Reicht eine Portion nicht, wird der Sensor vorübergehend eng getaktet
+    // (Intervall = Portionsdauer + Puffer), damit er nach jeder Portion neu misst
+    // und weiterfüllt. Ist der Zielpegel erreicht (oder Budget/Sperre), zurück
+    // auf den normalen Messplan – Akku schonen.
+    private function enterActiveRefill(float $missingCm): void
+    {
+        if ($this->ReadAttributeBoolean('ActiveRefill')) {
+            return;                                   // schon aktiv
+        }
+        $this->WriteAttributeBoolean('ActiveRefill', true);
+        $this->publishConfig(0, 0);                   // enges Intervall an den Sensor
+        $this->info(sprintf('Großer Rückstand (%.1f cm) – Auffüll-Modus: Sensor misst eng getaktet bis zum Zielpegel.', $missingCm));
+    }
+
+    private function exitActiveRefill(string $grund): void
+    {
+        if (!$this->ReadAttributeBoolean('ActiveRefill')) {
+            return;
+        }
+        $this->WriteAttributeBoolean('ActiveRefill', false);
+        $this->publishConfig(0, 0);                   // zurück auf Normal-Messplan
+        $this->info('Auffüll-Modus beendet (' . $grund . ') – zurück auf Normal-Messplan.');
+    }
+
     // ================= intern =================
     private function publishConfig(int $portal, int $ota): void
     {
+        $active = $this->ReadAttributeBoolean('ActiveRefill');
+        // Im Auffüll-Modus: Intervall = Portionsdauer + 5 min Puffer (Portion
+        // läuft + Wasser beruhigt sich, dann misst der Sensor wieder).
+        $activeInterval = max(1, $this->ReadPropertyInteger('MaxRunMin') + 5);
+
         $cfg = [
-            'mode'         => $this->ReadPropertyString('Mode'),
+            'mode'         => $active ? 'interval' : $this->ReadPropertyString('Mode'),
             'wake_hour'    => $this->ReadPropertyInteger('WakeHour'),
             'wake_min'     => $this->ReadPropertyInteger('WakeMin'),
-            'interval_min' => $this->ReadPropertyInteger('IntervalMin'),
+            'interval_min' => $active ? $activeInterval : $this->ReadPropertyInteger('IntervalMin'),
             'checkin_min'  => $this->ReadPropertyInteger('CheckinMin'),
             'offset_cm'    => $this->ReadPropertyFloat('OffsetCm'),
             'n_meas'       => $this->ReadPropertyInteger('NMeas'),

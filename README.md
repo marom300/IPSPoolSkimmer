@@ -159,6 +159,22 @@ Mehrlagige Absicherung (von Hardware nach Software):
 4. **Frische- + Plausibilitätsprüfung** des Messwerts
 5. **Erfolgskontrolle** nach jeder Portion → Sperre bei Abweichung
 
+### Auffüll-Modus (automatisch)
+
+Reicht **eine** Portion nicht (z. B. 5 cm+ nach einem starken Badetag),
+schaltet das Modul den Sensor **selbst** vorübergehend auf ein enges
+Mess-Intervall (= „Max. Minuten pro Portion" + 5 min Puffer). So misst und füllt
+er nach jeder Portion nach, bis der Zielpegel erreicht ist – statt tagelang auf
+den nächsten Tagestermin zu warten. Danach stellt er automatisch auf den
+normalen Messplan zurück (Akku schonen).
+
+Damit die Umstellung **sofort** greift und nicht erst am nächsten Tag, holt der
+Sensor direkt nach dem Senden der Messung nochmal die Config ab (Firmware
+≥ 2.0.6). Der Auffüll-Modus endet auch bei erschöpftem Tagesbudget oder einer
+Sperre und läuft am Folgetag (bzw. nach Quittieren) weiter. Beispiel an diesem
+Pool (22,75 m², ~50 l/min, Budget 40 min): 5 cm fehlen → ~1 h, zwei Portionen,
+noch am selben Abend voll.
+
 ### Start-Skript
 
 Kleines PHP-Skript, das die Nachfüll-Zone startet. Das Modul übergibt
