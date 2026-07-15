@@ -81,6 +81,11 @@
                     "caption": "Automatisches Nachfüllen aktiv"
                 },
                 {
+                    "type": "CheckBox",
+                    "name": "UseActiveRefill",
+                    "caption": "Auffüll-Modus (bei großem Rückstand eng takten, bis Zielpegel erreicht)"
+                },
+                {
                     "type": "SelectScript",
                     "name": "RefillScriptID",
                     "caption": "Start-Skript (startet Hunter-Zone für $_IPS['DURATION'] Minuten)"

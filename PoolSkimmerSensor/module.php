@@ -50,6 +50,7 @@ class PoolSkimmerSensor extends IPSModule
 
         // --- Nachfuellen: Geometrie & Hydraulik ---
         $this->RegisterPropertyBoolean('AutoRefill', false);
+        $this->RegisterPropertyBoolean('UseActiveRefill', true);  // enges Intervall bei grossem Rueckstand
         $this->RegisterPropertyFloat('PoolArea', 22.75);         // m^2 Wasseroberflaeche
         $this->RegisterPropertyFloat('TargetLevelCm', 10.0);     // SOLL-Abstand Sensor->Wasser (voll)
         $this->RegisterPropertyFloat('ToleranceCm', 0.5);        // darunter keine Aktion
@@ -102,6 +103,7 @@ class PoolSkimmerSensor extends IPSModule
         $this->ensureProfileFloat('PSK.lmin', ' l/min', 1);
         $this->ensureProfileInt('PSK.min', ' min');
         $this->ensureRefillStateProfile();
+        $this->ensureActiveRefillProfile();
 
         // --- Statusvariablen Sensor ---
         $this->RegisterVariableFloat('WaterLevel', 'Füllstand (Abstand)', 'PSK.cm', 10);
@@ -117,6 +119,7 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterVariableFloat('MissingCm', 'Fehlender Pegel', 'PSK.cm', 100);
         $this->RegisterVariableFloat('MissingLiters', 'Fehlmenge', 'PSK.liter', 110);
         $this->RegisterVariableInteger('RefillState', 'Nachfüll-Status', 'PSK.RefillState', 120);
+        $this->RegisterVariableBoolean('ActiveRefillMode', 'Auffüll-Modus aktiv', 'PSK.ActiveRefill', 125);
         $this->RegisterVariableInteger('TodayRefillMin', 'Nachfüllzeit heute', 'PSK.min', 130);
         $this->RegisterVariableInteger('LastRefill', 'Letzte Nachfüllung', '~UnixTimestamp', 140);
         $this->RegisterVariableFloat('CalcFlowRate', 'Zuflussrate (kalibriert)', 'PSK.lmin', 150);
@@ -133,6 +136,8 @@ class PoolSkimmerSensor extends IPSModule
         if (!$this->ReadPropertyBoolean('AutoRefill') && $this->GetValue('RefillState') !== self::ST_LOCKED) {
             $this->SetValue('RefillState', self::ST_OFF);
         }
+        // sichtbare Variable mit dem internen Zustand abgleichen
+        $this->SetValue('ActiveRefillMode', $this->ReadAttributeBoolean('ActiveRefill'));
 
         $this->enableArchiving();
     }
@@ -153,7 +158,8 @@ class PoolSkimmerSensor extends IPSModule
         // (Firmware, ConfigAck, RefillInfo) und reine Zeitstempel (LastSeen,
         // LastRefill, LastCalib) werden bewusst NICHT geloggt.
         $idents = ['WaterLevel', 'BatteryV', 'BatteryPct', 'MissingCm', 'MissingLiters',
-                   'TodayRefillMin', 'RSSI', 'RefillState', 'Stale', 'CalcFlowRate'];
+                   'TodayRefillMin', 'RSSI', 'RefillState', 'Stale', 'CalcFlowRate',
+                   'ActiveRefillMode'];
         $changed = false;
         foreach ($idents as $ident) {
             $vid = @$this->GetIDForIdent($ident);
@@ -190,6 +196,7 @@ class PoolSkimmerSensor extends IPSModule
             'rssi'          => $this->GetValue('RSSI'),
             'fw'            => $this->GetValue('FwVersion'),
             'refill_state'  => $this->GetValue('RefillState'),
+            'active_refill' => $this->GetValue('ActiveRefillMode'),
             'refill_today'  => $this->GetValue('TodayRefillMin'),
             'refill_last'   => $this->GetValue('LastRefill'),
             'refill_info'   => $this->GetValue('RefillInfo'),
@@ -486,10 +493,14 @@ class PoolSkimmerSensor extends IPSModule
     // auf den normalen Messplan – Akku schonen.
     private function enterActiveRefill(float $missingCm): void
     {
+        if (!$this->ReadPropertyBoolean('UseActiveRefill')) {
+            return;                                   // Funktion abgeschaltet
+        }
         if ($this->ReadAttributeBoolean('ActiveRefill')) {
             return;                                   // schon aktiv
         }
         $this->WriteAttributeBoolean('ActiveRefill', true);
+        $this->SetValue('ActiveRefillMode', true);
         $this->publishConfig(0, 0);                   // enges Intervall an den Sensor
         $this->info(sprintf('Großer Rückstand (%.1f cm) – Auffüll-Modus: Sensor misst eng getaktet bis zum Zielpegel.', $missingCm));
     }
@@ -500,6 +511,7 @@ class PoolSkimmerSensor extends IPSModule
             return;
         }
         $this->WriteAttributeBoolean('ActiveRefill', false);
+        $this->SetValue('ActiveRefillMode', false);
         $this->publishConfig(0, 0);                   // zurück auf Normal-Messplan
         $this->info('Auffüll-Modus beendet (' . $grund . ') – zurück auf Normal-Messplan.');
     }
@@ -595,5 +607,15 @@ class PoolSkimmerSensor extends IPSModule
         IPS_SetVariableProfileAssociation($name, self::ST_VERIFY,  'Warte auf Kontrolle', '', 0xFFA500);
         IPS_SetVariableProfileAssociation($name, self::ST_LOCKED,  'GESPERRT', '', 0xFF0000);
         IPS_SetVariableProfileAssociation($name, self::ST_BUDGET,  'Tagesbudget erreicht', '', 0xFFA500);
+    }
+
+    private function ensureActiveRefillProfile(): void
+    {
+        $name = 'PSK.ActiveRefill';
+        if (!IPS_VariableProfileExists($name)) {
+            IPS_CreateVariableProfile($name, 0);   // 0 = boolean
+        }
+        IPS_SetVariableProfileAssociation($name, 0, 'Normal', '', 0x808080);
+        IPS_SetVariableProfileAssociation($name, 1, 'Auffüllen läuft', '', 0x0080FF);
     }
 }

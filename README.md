@@ -67,6 +67,7 @@ Port, den auch der Sensor anspricht (Standard im Projekt: 1889).
 | Parameter | Standard | Beschreibung |
 |---|---|---|
 | **Automatisches Nachfüllen aktiv** | aus | Hauptschalter. Solange aus, misst und meldet das Modul nur, füllt aber **nie** nach. Erst einschalten, wenn Ziel-Abstand und Zuflussrate korrekt eingestellt und getestet sind. |
+| **Auffüll-Modus** | ein | Bei großem Rückstand (mehr als eine Portion nötig) taktet der Sensor vorübergehend eng, bis der Zielpegel erreicht ist (siehe Abschnitt „Auffüll-Modus"). Aus = klassisch eine Portion pro Messtermin. Das enge Intervall wird automatisch aus „Max. Minuten pro Portion" + 5 min abgeleitet – **keine eigene Einstellung nötig**. |
 | **Start-Skript** | – | PHP-Skript, das die Nachfüll-Zone am Bewässerungscomputer startet. Das Modul ruft es mit `$_IPS['DURATION']` (Laufzeit in Minuten) auf. Vorlage: `firmware/symcon_refill_start.php` bzw. Abschnitt „Start-Skript" unten. |
 | **Wasseroberfläche (m²)** | 22,75 | Fläche der Wasseroberfläche. Daraus wird cm → Liter berechnet: 1 cm auf 1 m² = 10 l. Bei 22,75 m² also 227,5 l pro cm. **Nur die Oberfläche nötig** – Volumen/Tiefe sind irrelevant. |
 | **Ziel-Abstand Sensor→Wasser (cm)** | 10 | Der Abstandswert, den der Sensor bei **vollem** Pool (Wunsch-Pegel) misst. Ist der gemessene Abstand größer, fehlt Wasser. Nach dem Einbau einmalig ablesen und eintragen. |
@@ -127,6 +128,7 @@ Aufruf, egal woher die Werte stammen.
 | **Konfig-Bestätigung (Sensor)** | `<base>/config_ack` | Die Konfiguration, die der Sensor tatsächlich übernommen hat (Kontrolle, ob „senden" angekommen ist). |
 | **Fehlender Pegel** / **Fehlmenge** | berechnet | Wie viel cm bzw. Liter bis zum Ziel-Abstand fehlen. |
 | **Nachfüll-Status** | berechnet | Automatik aus / Bereit / Portion läuft / Warte auf Kontrolle / GESPERRT / Tagesbudget erreicht. |
+| **Auffüll-Modus aktiv** | berechnet | Zeigt (und loggt) an, ob der Sensor gerade im engen Auffüll-Takt läuft (Normal / Auffüllen läuft). |
 | **Nachfüllzeit heute** | berechnet | Bereits heute verbrauchte Nachfüllminuten (gegen Tagesbudget). |
 | **Letzte Nachfüllung** | berechnet | Zeitstempel der letzten gestarteten Portion. |
 | **Zuflussrate (kalibriert)** | Kalibrierlauf | Vom Kalibrierlauf ermittelte Füllrate in l/min. Diesen Wert nutzt die Nachfüll-Logik direkt – ist er 0, wird nicht nachgefüllt (erst kalibrieren). |
@@ -135,7 +137,8 @@ Aufruf, egal woher die Werte stammen.
 
 Das Logging ins Archiv aktiviert das Modul beim Übernehmen der Einstellungen
 selbst für die auswertbaren Zahlen-/Status-Variablen (Füllstand, Akku V/%,
-fehlender Pegel/Menge, Nachfüllzeit, RSSI, Nachfüll-Status, Stale, Zuflussrate).
+fehlender Pegel/Menge, Nachfüllzeit, RSSI, Nachfüll-Status, Stale, Zuflussrate,
+Auffüll-Modus aktiv).
 Bewusst **nicht** geloggt werden Text-Variablen (Firmware, Konfig-Bestätigung,
 Nachfüll-Protokoll) und reine Zeitstempel (zuletzt gesehen, letzte Nachfüllung,
 letzte Kalibrierung) – die ergeben als Archiv-Kurve keinen Sinn. Bestehende
