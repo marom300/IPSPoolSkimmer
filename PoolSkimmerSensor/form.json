@@ -55,6 +55,17 @@
                     "maximum": 50
                 },
                 {
+                    "type": "NumberSpinner",
+                    "name": "RetryMin",
+                    "caption": "Sende-Retry-Basis (Minuten, 0 = aus)",
+                    "minimum": 0,
+                    "maximum": 60
+                },
+                {
+                    "type": "Label",
+                    "caption": "Retry: Scheitert Senden (WLAN/MQTT), wird nach 1×/2×/3×… dieser Basis erneut gemessen (max. 60 min Abstand) – statt bis zum nächsten Plantermin zu warten."
+                },
+                {
                     "type": "Label",
                     "caption": "Änderungen mit 'Konfiguration an Sensor senden' übertragen (Sensor übernimmt sie beim nächsten Aufwachen)."
                 }

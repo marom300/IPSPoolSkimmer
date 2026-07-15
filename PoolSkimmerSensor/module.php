@@ -46,6 +46,7 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterPropertyInteger('CheckinMin', 240);       // 0 = aus
         $this->RegisterPropertyFloat('OffsetCm', 0.0);
         $this->RegisterPropertyInteger('NMeas', 10);
+        $this->RegisterPropertyInteger('RetryMin', 5);   // Sende-Retry-Basis (min); 0 = aus
 
         // --- Nachfuellen: Geometrie & Hydraulik ---
         $this->RegisterPropertyBoolean('AutoRefill', false);
@@ -450,6 +451,7 @@ class PoolSkimmerSensor extends IPSModule
             'checkin_min'  => $this->ReadPropertyInteger('CheckinMin'),
             'offset_cm'    => $this->ReadPropertyFloat('OffsetCm'),
             'n_meas'       => $this->ReadPropertyInteger('NMeas'),
+            'retry_min'    => $this->ReadPropertyInteger('RetryMin'),
             'portal'       => $portal,
             'ota'          => $ota
         ];
