@@ -7,6 +7,23 @@
         },
         {
             "type": "ExpansionPanel",
+            "caption": "Dashboard",
+            "items": [
+                {
+                    "type": "RowLayout",
+                    "items": [
+                        { "type": "ValidationTextBox", "name": "DashboardTitle", "caption": "Titel" },
+                        { "type": "ValidationTextBox", "name": "DashboardSubtitle", "caption": "Untertitel" }
+                    ]
+                },
+                {
+                    "type": "Label",
+                    "caption": "Aufruf im Browser/IPSView: http://<Symcon-IP>:3777/hook/poolskimmer<InstanzID> (Instanz-ID oben in der Titelzeile ablesen)."
+                }
+            ]
+        },
+        {
+            "type": "ExpansionPanel",
             "caption": "Messplan (Sensor)",
             "items": [
                 {

@@ -5,8 +5,8 @@
     "title": "Pool Skimmer Sensor",
     "description": "Batteriebetriebener Pool-Fuellstandssensor (ESP32 Lolin D32 + VL53L0X) mit Deep-Sleep, angebunden per MQTT. Fernkonfiguration ueber retained Config-Topic.",
     "url": "",
-    "version": "1.9",
-    "build": 10,
+    "version": "2.0",
+    "build": 11,
     "date": 0,
     "compatibility": {
         "minIPS": "6.0"

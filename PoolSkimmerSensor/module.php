@@ -37,6 +37,10 @@ class PoolSkimmerSensor extends IPSModule
         parent::Create();
         // Parent (MQTT Server) wird ueber parentRequirements + Schnittstellendialog gewaehlt.
 
+        // --- Dashboard ---
+        $this->RegisterPropertyString('DashboardTitle', 'Pool');
+        $this->RegisterPropertyString('DashboardSubtitle', 'Füllstand & Nachfüllung');
+
         // --- Sensor / MQTT ---
         $this->RegisterPropertyString('BaseTopic', 'pool/skimmer');
         $this->RegisterPropertyString('Mode', 'daily');          // daily | interval
@@ -140,6 +144,20 @@ class PoolSkimmerSensor extends IPSModule
         $this->SetValue('ActiveRefillMode', $this->ReadAttributeBoolean('ActiveRefill'));
 
         $this->enableArchiving();
+
+        // Dashboard-WebHook registrieren (erst wenn der Kernel bereit ist)
+        if (IPS_GetKernelRunlevel() == KR_READY) {
+            $this->RegisterHook('/hook/poolskimmer' . $this->InstanceID);
+        } else {
+            $this->RegisterMessage(0, IPS_KERNELSTARTED);
+        }
+    }
+
+    public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
+    {
+        if ($Message == IPS_KERNELSTARTED) {
+            $this->RegisterHook('/hook/poolskimmer' . $this->InstanceID);
+        }
     }
 
     /**
@@ -617,5 +635,117 @@ class PoolSkimmerSensor extends IPSModule
         }
         IPS_SetVariableProfileAssociation($name, 0, 'Normal', '', 0x808080);
         IPS_SetVariableProfileAssociation($name, 1, 'Auffüllen läuft', '', 0x0080FF);
+    }
+
+    // ================= WebHook / Dashboard =================
+    private function RegisterHook(string $Hook): void
+    {
+        $ids = IPS_GetInstanceListByModuleID('{015A6EB8-D6E5-4B93-B496-0D3F77AE9FE1}'); // WebHook Control
+        if (count($ids) === 0) {
+            return;
+        }
+        $hookID = $ids[0];
+        $hooks = json_decode(IPS_GetProperty($hookID, 'Hooks'), true);
+        if (!is_array($hooks)) {
+            $hooks = [];
+        }
+        foreach ($hooks as $h) {
+            if (($h['Hook'] ?? '') === $Hook && (int)($h['TargetID'] ?? 0) === $this->InstanceID) {
+                return;   // schon registriert
+            }
+        }
+        $hooks = array_values(array_filter($hooks, fn ($h) => ($h['Hook'] ?? '') !== $Hook));
+        $hooks[] = ['Hook' => $Hook, 'TargetID' => $this->InstanceID];
+        IPS_SetProperty($hookID, 'Hooks', json_encode($hooks));
+        IPS_ApplyChanges($hookID);
+    }
+
+    public function ProcessHookData()
+    {
+        $action = $_GET['action'] ?? '';
+
+        if ($action === 'status') {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode($this->buildStatusData());
+            return;
+        }
+        if ($action === 'history') {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode($this->buildHistoryData());
+            return;
+        }
+        if ($action === 'ack') {
+            ob_start();
+            $this->AcknowledgeLock();
+            ob_end_clean();
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => true]);
+            return;
+        }
+
+        // Dashboard ausliefern
+        $html = @file_get_contents(__DIR__ . '/dashboard.html');
+        if ($html === false) {
+            http_response_code(404);
+            echo 'dashboard.html fehlt';
+            return;
+        }
+        $html = str_replace(
+            ['__HOOK__', '__TITLE__', '__SUBTITLE__'],
+            [
+                '/hook/poolskimmer' . $this->InstanceID,
+                htmlspecialchars($this->ReadPropertyString('DashboardTitle')),
+                htmlspecialchars($this->ReadPropertyString('DashboardSubtitle')),
+            ],
+            $html
+        );
+        header('Content-Type: text/html; charset=utf-8');
+        echo $html;
+    }
+
+    private function buildStatusData(): array
+    {
+        $d = json_decode($this->GetDashboardData(), true);
+        if (!is_array($d)) {
+            $d = [];
+        }
+        // Konfig-Kontext fuer die Anzeige
+        $d['target_cm']    = $this->ReadPropertyFloat('TargetLevelCm');
+        $d['tolerance_cm'] = $this->ReadPropertyFloat('ToleranceCm');
+        $d['pool_area']    = $this->ReadPropertyFloat('PoolArea');
+        $d['max_run_min']  = $this->ReadPropertyInteger('MaxRunMin');
+        $d['budget_min']   = $this->ReadPropertyInteger('DailyBudgetMin');
+        $d['auto_refill']  = $this->ReadPropertyBoolean('AutoRefill');
+        return $d;
+    }
+
+    private function buildHistoryData(): array
+    {
+        $archList = IPS_GetInstanceListByModuleID('{43192F0B-135B-4CE7-A0A7-1475603F3060}');
+        if (count($archList) === 0) {
+            return [];
+        }
+        $arch = $archList[0];
+        $out = [];
+        $series = [
+            'level' => 'WaterLevel',
+            'batt'  => 'BatteryPct'
+        ];
+        foreach ($series as $key => $ident) {
+            $vid = @$this->GetIDForIdent($ident);
+            if ($vid === false || $vid <= 0 || !AC_GetLoggingStatus($arch, $vid)) {
+                continue;
+            }
+            $vals = @AC_GetLoggedValues($arch, $vid, time() - 48 * 3600, time(), 400);
+            if (!is_array($vals)) {
+                continue;
+            }
+            $pts = [];
+            foreach (array_reverse($vals) as $v) {
+                $pts[] = [(int)$v['TimeStamp'], round((float)$v['Value'], 1)];
+            }
+            $out[$key] = $pts;
+        }
+        return $out;
     }
 }

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>__TITLE__</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   SYMCON-DASHBOARD – Design-System (Glas auf Anthrazit, Cyan-Glow)
+   Pool-Ausgabe · Stil identisch zum StiebelWPM-Dashboard
+   ══════════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-base: #232323;
+  --glass-bg: rgba(255,255,255,0.04);
+  --glass-bg-strong: rgba(255,255,255,0.07);
+  --glass-border: rgba(255,255,255,0.08);
+  --glass-blur: 20px;
+  --cyan: #00d4ff;  --cyan-dim: rgba(0,212,255,0.15);
+  --green:#3adf7c;  --green-dim: rgba(58,223,124,0.15);
+  --amber:#ffb020;  --amber-dim: rgba(255,176,32,0.15);
+  --red:  #ff5c5c;  --red-dim:  rgba(255,92,92,0.15);
+  --text: #e8f1ff;
+  --text-dim: rgba(232,241,255,0.55);
+  --text-faint: rgba(232,241,255,0.35);
+  --radius: 16px;
+  --mono: 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  --gap: clamp(8px, 1vw, 14px);
+}
+
+html { background: var(--bg-base); height: 100%; font-size: clamp(12px, 1.3vw, 16px); }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: var(--text);
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column; gap: var(--gap);
+  padding: clamp(10px, 1.2vw, 18px);
+  background: var(--bg-base);
+  overflow-x: hidden;
+}
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.4) 1px, transparent 1px);
+  background-size: 26px 26px; opacity: 0.02; pointer-events: none;
+}
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border); border-radius: var(--radius);
+}
+.card {
+  padding: clamp(9px, 1.3cqi, 16px);
+  container-type: inline-size;
+  min-height: 0; min-width: 0; display: flex; flex-direction: column;
+  animation: cardIn 0.5s cubic-bezier(0.22,1,0.36,1) backwards;
+}
+.card:nth-child(1){animation-delay:.05s} .card:nth-child(2){animation-delay:.12s} .card:nth-child(3){animation-delay:.19s}
+@keyframes cardIn { from { opacity:0; transform: translateY(14px);} to { opacity:1; transform:none;} }
+
+.card-title {
+  font-size: 11px; font-weight: 600; letter-spacing: 2.2px; text-transform: uppercase;
+  color: var(--text-dim); display: flex; align-items: center; gap: 8px;
+  margin-bottom: clamp(7px, 1.1cqi, 12px); flex: none;
+}
+.card-title .tdot { width:6px; height:6px; border-radius:50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); flex: none; }
+.card-title .spacer { flex: 1; }
+.card-title .meta { letter-spacing:.5px; text-transform:none; color: var(--text-faint); font-weight: 400; font-family: var(--mono); }
+
+/* ══ Header ══ */
+header {
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: clamp(8px,1.4vw,20px);
+  padding: clamp(8px,1vw,14px) clamp(12px,1.6vw,22px);
+  animation: cardIn 0.45s cubic-bezier(0.22,1,0.36,1) backwards;
+}
+.dev-badge {
+  width: clamp(38px,3.4vw,48px); height: clamp(38px,3.4vw,48px); border-radius: 50%;
+  background: var(--cyan-dim); border: 1px solid rgba(0,212,255,0.35);
+  display: grid; place-items: center; color: var(--cyan); flex: none;
+  box-shadow: 0 0 18px rgba(0,212,255,0.25), inset 0 0 12px rgba(0,212,255,0.12);
+}
+.dev-badge svg { width: 62%; height: 62%; }
+.dev-name { min-width: 0; }
+.dev-name h1 { font-size: clamp(16px,1.8vw,22px); font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dev-name .sub { font-size: clamp(10px,1vw,12px); color: var(--text-faint); letter-spacing: 1.5px; text-transform: uppercase; }
+header .spacer { flex: 1; }
+
+.status-pill {
+  display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--glass-border); background: var(--glass-bg-strong);
+  font-size: clamp(12px,1.2vw,14px); font-weight: 600; white-space: nowrap;
+  transition: border-color .4s, box-shadow .4s;
+}
+.status-pill .dot { width:9px; height:9px; border-radius:50%; background: var(--text-faint); flex:none; transition: background .4s, box-shadow .4s; }
+.status-pill[data-theme="ok"]     { border-color: rgba(58,223,124,.4); box-shadow: 0 0 16px rgba(58,223,124,.15); }
+.status-pill[data-theme="ok"] .dot{ background: var(--green); box-shadow: 0 0 10px var(--green); }
+.status-pill[data-theme="active"]     { border-color: rgba(0,212,255,.4); box-shadow: 0 0 16px rgba(0,212,255,.18); }
+.status-pill[data-theme="active"] .dot{ background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+.status-pill[data-theme="warn"]     { border-color: rgba(255,176,32,.4); }
+.status-pill[data-theme="warn"] .dot{ background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+.status-pill[data-theme="error"]     { border-color: rgba(255,92,92,.55); box-shadow: 0 0 16px rgba(255,92,92,.25); }
+.status-pill[data-theme="error"] .dot{ background: var(--red); box-shadow: 0 0 10px var(--red); }
+
+.chip {
+  display: flex; align-items: center; gap: 9px; padding: 7px 14px; border-radius: 999px;
+  border: 1px solid var(--glass-border); background: var(--glass-bg-strong);
+  font-family: var(--mono); font-size: clamp(12px,1.2vw,14px); font-weight: 700; white-space: nowrap;
+}
+.chip .cl { font-family: -apple-system,'Segoe UI',sans-serif; font-weight: 500; color: var(--text-faint); font-size: .85em; }
+
+.banner { flex:none; display:flex; align-items:center; gap:10px; padding:9px 16px; border-radius:12px; font-size:13px; border:1px solid; animation: cardIn .35s ease backwards; }
+.banner.hidden { display: none; }
+.banner-error { background: var(--red-dim); border-color: rgba(255,92,92,.4); color:#ffc9c9; }
+.banner-error .icon { color: var(--red); }
+.banner .retry { margin-left:auto; background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); color:inherit; border-radius:8px; padding:4px 12px; font-size:12px; cursor:pointer; }
+.banner .retry:hover { background: rgba(255,255,255,.15); }
+
+main { flex: 1 1 auto; min-height: 0; display: grid; gap: var(--gap); grid-template-columns: minmax(0,1fr); }
+.col { display: flex; flex-direction: column; gap: var(--gap); min-height: 0; min-width: 0; }
+
+/* Layout: Schema links groß, rechts Karten */
+main { grid-template-areas: "s" "p" "t"; }
+#area-s { grid-area: s; } #area-p { grid-area: p; } #area-t { grid-area: t; }
+@media (min-width: 1000px) {
+  main { grid-template-columns: minmax(0,2.15fr) minmax(230px,1fr); grid-template-rows: auto minmax(0,1fr); grid-template-areas: "s p" "s t"; }
+  #area-t { overflow: hidden; }
+}
+@media (min-width: 640px) and (max-width: 999px) {
+  main { grid-template-columns: 1fr 1fr; grid-template-areas: "s s" "p t"; }
+}
+@media (max-width: 999px) {
+  /* Schema: Hoehe folgt der Breite (statt riesiger leerer Karte) */
+  #area-s .schema-wrap { flex: none; aspect-ratio: 748/402; }
+}
+
+/* ── Kern-Komponenten ── */
+.kv { display: flex; flex-direction: column; gap: clamp(5px,1.4cqi,9px); }
+.kv-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: clamp(4px,1.2cqi,7px); border-bottom: 1px solid rgba(255,255,255,.05); }
+.kv-row:last-child { border-bottom: none; padding-bottom: 0; }
+.kv-key { font-size: clamp(11px,3.2cqi,13px); color: var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kv-val { font-family: var(--mono); font-size: clamp(12.5px,3.8cqi,15px); font-weight:700; color: var(--text); white-space:nowrap; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.kv-val.accent { color: var(--cyan); text-shadow: 0 0 14px rgba(0,212,255,.3); }
+.kv-val.good { color: var(--green); }
+.kv-val.warn { color: var(--amber); }
+.kv-val.crit { color: var(--red); }
+.kv-val small { font-size:.62em; color: var(--text-dim); font-weight:600; text-shadow:none; }
+.kv-val .word { font-family: -apple-system,'Segoe UI',sans-serif; font-weight:600; letter-spacing:.2px; }
+
+.ack-btn {
+  appearance:none; margin-top: clamp(6px,1.6cqi,10px);
+  border:1px solid rgba(255,92,92,.5); background: var(--red-dim); color: #ffc9c9;
+  border-radius:10px; padding: 8px 10px; font-size: clamp(11px,3.2cqi,13px); font-weight:600;
+  cursor:pointer; transition: background .2s, transform .1s;
+}
+.ack-btn:hover { background: rgba(255,92,92,.28); }
+.ack-btn:active { transform: scale(.97); }
+.ack-btn.hidden { display:none; }
+
+.info-line { margin-top:auto; padding-top: clamp(6px,1.6cqi,9px); font-size: clamp(10px,2.9cqi,11.5px); color: var(--text-faint); line-height:1.45; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+
+footer { flex:none; display:flex; align-items:center; gap:8px; font-size:11px; color: var(--text-faint); padding: 0 4px; }
+footer .conn-dot { width:7px; height:7px; border-radius:50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+footer.offline .conn-dot { background: var(--red); box-shadow: 0 0 6px var(--red); }
+footer .spacer { flex: 1; }
+.toast { position: fixed; bottom:22px; left:50%; transform: translate(-50%,16px); background: rgba(20,20,20,.94); border:1px solid rgba(0,212,255,.4); box-shadow: 0 8px 30px rgba(0,0,0,.5), 0 0 20px rgba(0,212,255,.15); border-radius:12px; padding:10px 20px; font-size:13px; font-weight:600; opacity:0; pointer-events:none; transition: opacity .3s, transform .3s; z-index:50; }
+.toast.show { opacity:1; transform: translate(-50%,0); }
+.toast.err { border-color: rgba(255,92,92,.5); }
+
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius:3px; }
+::-webkit-scrollbar-track { background: transparent; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+
+/* ── Anlagenschema ── */
+.schema-wrap { position:relative; flex:1 1 auto; min-height:0; }
+.schema-wrap svg { position:absolute; inset:0; width:100%; height:100%; }
+.schema-wrap .box  { fill: rgba(255,255,255,.035); stroke: rgba(255,255,255,.22); stroke-width:1.4; }
+.schema-wrap .box.err { stroke: var(--red); filter: drop-shadow(0 0 8px rgba(255,92,92,.5)); }
+.schema-wrap .waterfill { fill: rgba(0,212,255,.08); }
+.schema-wrap .waterline { fill:none; stroke: rgba(0,212,255,.45); stroke-width:2; stroke-linecap:round; }
+.schema-wrap .pipe { fill:none; stroke: rgba(255,255,255,.15); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; transition: stroke .5s; }
+.schema-wrap .flow { fill:none; stroke: var(--cyan); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray: 5 12; opacity:0; transition: opacity .5s; filter: drop-shadow(0 0 4px rgba(0,212,255,.5)); }
+.schema-wrap g.on .pipe { stroke: rgba(0,212,255,.35); }
+.schema-wrap g.on .flow { opacity:.95; animation: flowmove 7s linear infinite; }   /* die eine langsame Bewegung */
+.schema-wrap g.refill.on .pipe { stroke: rgba(58,223,124,.4); }
+.schema-wrap g.refill .flow { stroke: var(--green); filter: drop-shadow(0 0 4px rgba(58,223,124,.5)); }
+@keyframes flowmove { to { stroke-dashoffset: -170; } }
+.schema-wrap .lbl { fill: var(--text-faint); font-size: 10px; letter-spacing:1.6px; text-transform:uppercase; font-family: -apple-system,'Segoe UI',sans-serif; font-weight:600; }
+.schema-wrap .val { fill: var(--text); font-family: var(--mono); font-size: 14px; font-weight:700; }
+.schema-wrap .val.big { font-size: 24px; }
+.schema-wrap .val.dim { fill: var(--text-dim); font-size: 11px; }
+.schema-wrap .val.accent { fill: var(--cyan); }
+.schema-wrap .val.good { fill: var(--green); }
+.schema-wrap .val.warn { fill: var(--amber); }
+.schema-wrap .icon { stroke: var(--text-dim); transition: stroke .5s; }
+.schema-wrap .icon.on { stroke: var(--cyan); filter: drop-shadow(0 0 6px rgba(0,212,255,.5)); }
+.schema-wrap .spin-g { transform-origin: center; transform-box: fill-box; }
+.schema-wrap .spin-g.spin { animation: fanspin 3.5s linear infinite; }
+@keyframes fanspin { to { transform: rotate(360deg); } }
+.schema-wrap .beam { fill:none; stroke: var(--amber); stroke-width:1.6; stroke-dasharray: 3 5; opacity:.85; }
+
+/* ── Trend-Sparklines ── */
+.trend-list { display:flex; flex-direction:column; gap: clamp(6px,1.8cqi,11px); }
+.trend-row { min-width:0; }
+.trend-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:3px; }
+.trend-head .tl { font-size: clamp(10.5px,3cqi,12px); color: var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.trend-head .tv { font-family: var(--mono); font-size: clamp(11.5px,3.4cqi,13px); font-weight:700; color: var(--cyan); white-space:nowrap; }
+.trend-row svg { width:100%; height: clamp(20px,8cqi,30px); display:block; }
+.trend-row polyline { fill:none; stroke: var(--cyan); stroke-width:1.6; opacity:.85; vector-effect: non-scaling-stroke; }
+.trend-row .tarea { fill: rgba(0,212,255,.08); stroke:none; }
+.trend-empty { font-size: clamp(10.5px,3cqi,12px); color: var(--text-faint); line-height:1.5; }
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+
+<header class="glass">
+  <div class="dev-badge">
+    <!-- Pool: Wellen -->
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 8.5c1.7 0 1.7 1.4 3.4 1.4S7.1 8.5 8.8 8.5s1.7 1.4 3.4 1.4 1.7-1.4 3.4-1.4 1.7 1.4 3.4 1.4 1.6-1.4 3-1.4"/>
+      <path d="M2 13c1.7 0 1.7 1.4 3.4 1.4S7.1 13 8.8 13s1.7 1.4 3.4 1.4 1.7-1.4 3.4-1.4 1.7 1.4 3.4 1.4 1.6-1.4 3-1.4"/>
+      <path d="M2 17.5c1.7 0 1.7 1.4 3.4 1.4s1.7-1.4 3.4-1.4 1.7 1.4 3.4 1.4 1.7-1.4 3.4-1.4 1.7 1.4 3.4 1.4 1.6-1.4 3-1.4"/>
+    </svg>
+  </div>
+  <div class="dev-name"><h1 id="devName">__TITLE__</h1><div class="sub" id="devSub">__SUBTITLE__</div></div>
+  <div class="spacer"></div>
+  <div class="chip" id="chipTemp"><span class="cl">Wasser</span><span id="chipTempVal">–</span></div>
+  <div class="chip" id="chipBatt"><span class="cl">Akku</span><span id="chipBattVal">–</span></div>
+  <div class="status-pill" id="statusPill" data-theme="ok"><span class="dot"></span><span id="statusText">–</span></div>
+</header>
+
+<div class="banner banner-error hidden" id="connBanner">
+  <span class="icon">⚠</span><span id="connBannerText">Keine Verbindung zu IP-Symcon.</span>
+  <button class="retry" id="connRetry">Erneut versuchen</button>
+</div>
+
+<main>
+  <!-- S: Anlagenschema -->
+  <section class="card glass" id="area-s">
+    <div class="card-title"><span class="tdot"></span> Anlage <span class="spacer"></span><span class="meta" id="schemaMeta"></span></div>
+    <div class="schema-wrap">
+      <svg viewBox="10 26 748 402" xmlns="http://www.w3.org/2000/svg">
+
+        <!-- ══ Umwälzkreis (Rohre unter allem) ══ -->
+        <g id="gCirc">
+          <path class="pipe" d="M487,332 V362 H577"/>                <!-- Skimmer -> Pumpe -->
+          <path class="pipe" d="M637,362 H692 V267"/>                <!-- Pumpe -> Filter -->
+          <path class="pipe" d="M692,168 V80 H92 V238"/>             <!-- Filter -> Ruecklauf/Duesen -->
+          <path class="flow" d="M487,332 V362 H577"/>
+          <path class="flow" d="M637,362 H692 V267"/>
+          <path class="flow" d="M692,168 V80 H92 V238"/>
+        </g>
+
+        <!-- ══ Nachfüll-Strang (Frischwasser) ══ -->
+        <g id="gRefill" class="refill">
+          <path class="pipe" d="M40,52 V238"/>
+          <path class="flow" d="M40,52 V238"/>
+        </g>
+        <text class="lbl" x="54" y="46">Frischwasser</text>
+        <text class="val dim" id="sRefillInfo" x="54" y="62"></text>
+        <!-- Ventil-Symbol -->
+        <path d="M32,38 L48,46 L32,54 Z M48,38 L32,46 L48,54 Z" fill="none" stroke="rgba(232,241,255,0.4)" stroke-width="1.3" id="sValve"/>
+
+        <!-- ══ Becken ══ -->
+        <rect class="box" x="30" y="240" width="420" height="168" rx="14"/>
+        <rect class="waterfill" x="34" y="266" width="412" height="138" rx="10"/>
+        <path class="waterline" d="M40 266 q10 -5 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0"/>
+        <text class="lbl" x="30" y="232">Pool</text>
+        <text class="val dim" id="sPoolMeta" x="78" y="232"></text>
+        <text class="val big accent" id="sTemp" x="240" y="330" text-anchor="middle">–</text>
+        <text class="lbl" x="240" y="350" text-anchor="middle">Wassertemperatur</text>
+        <text class="val dim" id="sPh" x="150" y="388" text-anchor="middle"></text>
+        <text class="val dim" id="sRedox" x="330" y="388" text-anchor="middle"></text>
+        <!-- Pegel-Status rechts oben im Becken -->
+        <text class="val" id="sLevelState" x="438" y="292" text-anchor="end">–</text>
+
+        <!-- Düsen-Pfeile (Einströmung) -->
+        <g id="sJets" fill="rgba(232,241,255,0.35)">
+          <path d="M86,244 l6,10 h-12 z"/>
+        </g>
+
+        <!-- ══ Skimmer mit Sensor ══ -->
+        <rect class="box" x="452" y="240" width="70" height="92" rx="10"/>
+        <rect class="waterfill" x="456" y="296" width="62" height="32" rx="6"/>
+        <text class="lbl" x="487" y="226" text-anchor="middle">Skimmer</text>
+        <!-- Sensor-Deckel -->
+        <rect x="470" y="244" width="34" height="10" rx="3" fill="rgba(0,212,255,0.12)" stroke="rgba(0,212,255,0.4)" stroke-width="1.2" id="sSensorBox"/>
+        <!-- Messstrahl -->
+        <path class="beam" id="sBeam" d="M487,256 V294"/>
+        <text class="val" id="sDist" x="533" y="278">–</text>
+        <text class="lbl" x="533" y="292">Abstand</text>
+
+        <!-- ══ Pumpe ══ -->
+        <circle cx="607" cy="362" r="27" fill="rgba(255,255,255,.035)" stroke="rgba(255,255,255,.22)" stroke-width="1.4" id="sPumpBox"/>
+        <g id="sFanG" class="spin-g">
+          <g id="sFan" class="icon" transform="translate(590.5,345.5) scale(1.45)" fill="none" stroke-width="0.95" stroke-linecap="round">
+            <circle cx="11.4" cy="11.4" r="2"/>
+            <path d="M11.4 9.4c-2.3 0-3.2-2.3-2-3.9 1-1.4 2-2.6 2-2.6s1 1.2 2 2.6c1.2 1.6.3 3.9-2 3.9z"/>
+            <path d="M11.4 9.4c-2.3 0-3.2-2.3-2-3.9 1-1.4 2-2.6 2-2.6s1 1.2 2 2.6c1.2 1.6.3 3.9-2 3.9z" transform="rotate(120 11.4 11.4)"/>
+            <path d="M11.4 9.4c-2.3 0-3.2-2.3-2-3.9 1-1.4 2-2.6 2-2.6s1 1.2 2 2.6c1.2 1.6.3 3.9-2 3.9z" transform="rotate(240 11.4 11.4)"/>
+          </g>
+        </g>
+        <text class="lbl" x="607" y="405" text-anchor="middle">Pumpe</text>
+        <text class="val dim" id="sPumpMeta" x="607" y="420" text-anchor="middle">–</text>
+
+        <!-- ══ Filter ══ -->
+        <rect class="box" x="655" y="170" width="74" height="97" rx="12"/>
+        <rect class="waterfill" x="659" y="205" width="66" height="58" rx="8"/>
+        <text class="lbl" x="692" y="190" text-anchor="middle">Filter</text>
+
+        <text class="lbl" x="390" y="72" text-anchor="middle">Rücklauf · Düsen</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- P: Nachfüllung + Sensor -->
+  <div class="col" id="area-p">
+    <section class="card glass">
+      <div class="card-title"><span class="tdot"></span> Nachfüllung <span class="spacer"></span><span class="meta" id="refillMeta"></span></div>
+      <div class="kv" id="kvRefill"></div>
+      <button class="ack-btn hidden" id="ackBtn">Sperre quittieren</button>
+      <div class="info-line" id="refillInfo"></div>
+    </section>
+    <section class="card glass">
+      <div class="card-title"><span class="tdot"></span> Sensor</div>
+      <div class="kv" id="kvSensor"></div>
+    </section>
+  </div>
+
+  <!-- T: Trends -->
+  <section class="card glass" id="area-t">
+    <div class="card-title"><span class="tdot"></span> Trends <span class="spacer"></span><span class="meta">48 h</span></div>
+    <div class="trend-list" id="trendList"><div class="trend-empty">Noch keine Archivdaten.</div></div>
+  </section>
+</main>
+
+<footer id="footer"><span class="conn-dot"></span><span id="connText">Verbinde …</span><span class="spacer"></span><span id="lastUpdate"></span></footer>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ Konfiguration ══
+const HOOK = '__HOOK__';                 // wird vom Modul ersetzt
+const POLL_MS = 10000;
+const HIST_MS = 5 * 60 * 1000;
+const MOCK = new URLSearchParams(location.search).has('mock') || location.protocol === 'file:';
+
+const REFILL_STATE = {
+  0: { t:'Automatik aus',        theme:'ok',     cls:''       },
+  1: { t:'Bereit',               theme:'ok',     cls:'good'   },
+  2: { t:'Portion läuft',        theme:'active', cls:'accent' },
+  3: { t:'Warte auf Kontrolle',  theme:'active', cls:'accent' },
+  4: { t:'GESPERRT',             theme:'error',  cls:'crit'   },
+  5: { t:'Tagesbudget erreicht', theme:'warn',   cls:'warn'   }
+};
+
+const $ = id => document.getElementById(id);
+if (MOCK && HOOK.startsWith('__')) {   // huebsche Titel beim lokalen Testen
+  document.title = 'Pool';
+  document.getElementById('devName').textContent = 'Pool';
+  document.getElementById('devSub').textContent = 'Füllstand & Nachfüllung';
+}
+const num = (v,d=1) => (v==null||isNaN(v)) ? '–' : Number(v).toLocaleString('de-DE',{minimumFractionDigits:d>0?Math.min(d,1):0, maximumFractionDigits:d});
+const fmtClock = ts => new Date(ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+const rel = ts => {
+  if (!ts) return '–';
+  const s = Math.floor(Date.now()/1000 - ts);
+  if (s < 90) return 'gerade eben';
+  if (s < 3600) return 'vor ' + Math.round(s/60) + ' min';
+  if (s < 86400) return 'vor ' + Math.round(s/3600) + ' h';
+  return 'vor ' + Math.round(s/86400) + ' Tagen';
+};
+
+// ══ Provider ══
+async function fetchJson(action) {
+  if (MOCK) return action === 'history' ? MOCK_HIST() : MOCK_DATA();
+  const res = await fetch(HOOK + '?action=' + action, { cache:'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return await res.json();
+}
+
+// ══ Render ══
+function kvRow(key, val, cls='') {
+  return `<div class="kv-row"><span class="kv-key">${key}</span><span class="kv-val ${cls}">${val}</span></div>`;
+}
+const word = t => `<span class="word">${t}</span>`;
+
+function render(d) {
+  const state = REFILL_STATE[d.refill_state] ?? REFILL_STATE[0];
+  const pumpOn = Number(d.pump_rpm) > 0 || Number(d.pump_stage) > 0;
+  const refillOn = d.refill_state === 2;
+  const staleOld = d.last_seen && (Date.now()/1000 - d.last_seen) > 26*3600;
+
+  // Header
+  $('chipTempVal').innerHTML = d.water_temp==null ? '–' : num(d.water_temp)+' <small style="color:var(--text-dim)">°C</small>';
+  $('chipBattVal').innerHTML = d.battery_pct==null ? '–' : num(d.battery_pct,0)+' <small style="color:var(--text-dim)">%</small>';
+
+  let pill = state;
+  if (d.stale || staleOld) pill = { t: staleOld ? 'Sensor offline?' : 'Messwert veraltet', theme:'warn' };
+  if (d.refill_state === 4) pill = state;
+  if (d.active_refill && d.refill_state !== 4) pill = { t:'Auffüll-Modus', theme:'active' };
+  $('statusPill').dataset.theme = pill.theme;
+  $('statusText').textContent = pill.t;
+
+  // ── Schema ──
+  $('sTemp').textContent = d.water_temp==null ? '–' : num(d.water_temp) + ' °C';
+  $('sPh').textContent = d.ph==null ? '' : 'pH ' + num(d.ph,2);
+  $('sRedox').textContent = d.redox==null ? '' : 'Redox ' + num(d.redox,0) + ' mV';
+  $('sPoolMeta').textContent = d.pool_area ? '· ' + num(d.pool_area,2) + ' m²' : '';
+  $('sDist').textContent = d.level_cm==null ? '–' : num(d.level_cm) + ' cm';
+
+  const missing = d.missing_cm ?? 0;
+  const lvlEl = $('sLevelState');
+  if (missing > (d.tolerance_cm ?? 0.5)) {
+    lvlEl.textContent = 'fehlt ' + num(missing) + ' cm · ' + num(d.missing_l,0) + ' l';
+    lvlEl.setAttribute('class','val warn');
+  } else {
+    lvlEl.textContent = 'Pegel OK';
+    lvlEl.setAttribute('class','val good');
+  }
+
+  $('gCirc').classList.toggle('on', pumpOn);
+  $('sFan').classList.toggle('on', pumpOn);
+  $('sFanG').classList.toggle('spin', pumpOn);
+  $('sPumpMeta').textContent = d.pump_stage!=null
+    ? ('Stufe ' + d.pump_stage + (d.pump_rpm!=null ? ' · ' + num(d.pump_rpm,0) + ' rpm' : ''))
+    : (d.pump_rpm!=null ? num(d.pump_rpm,0) + ' rpm' : '–');
+
+  $('gRefill').classList.toggle('on', refillOn);
+  $('sRefillInfo').textContent = refillOn ? 'läuft' : '';
+
+  $('schemaMeta').textContent = 'Sensor ' + rel(d.last_seen);
+
+  // ── Nachfüllung ──
+  const kr = [];
+  kr.push(kvRow('Status', word(state.t), state.cls));
+  kr.push(kvRow('Automatik', word(d.auto_refill ? 'aktiv' : 'aus'), d.auto_refill ? 'good' : ''));
+  kr.push(kvRow('Auffüll-Modus', word(d.active_refill ? 'läuft' : 'Normal'), d.active_refill ? 'accent' : ''));
+  kr.push(kvRow('Heute', num(d.refill_today,0) + ' <small>/ ' + num(d.budget_min,0) + ' min</small>'));
+  kr.push(kvRow('Letzte Portion', d.refill_last ? word(rel(d.refill_last)) : '–'));
+  kr.push(kvRow('Zuflussrate', d.flow_measured > 0 ? num(d.flow_measured) + ' <small>l/min</small>' : word('nicht kalibriert'), d.flow_measured > 0 ? '' : 'warn'));
+  kr.push(kvRow('Ziel-Abstand', num(d.target_cm) + ' <small>cm</small>'));
+  $('kvRefill').innerHTML = kr.join('');
+  $('refillMeta').textContent = '';
+  $('ackBtn').classList.toggle('hidden', d.refill_state !== 4);
+  $('refillInfo').textContent = d.refill_info || '';
+
+  // ── Sensor (Abstand/Fehlmenge stehen bereits im Schema) ──
+  const ks = [];
+  ks.push(kvRow('Akku', num(d.battery_v,2) + ' <small>V</small> · ' + num(d.battery_pct,0) + ' <small>%</small>',
+    d.battery_pct != null && d.battery_pct < 20 ? 'crit' : (d.battery_pct != null && d.battery_pct < 40 ? 'warn' : '')));
+  ks.push(kvRow('WLAN', d.rssi != null ? num(d.rssi,0) + ' <small>dBm</small>' : '–', d.rssi != null && d.rssi < -80 ? 'warn' : ''));
+  ks.push(kvRow('Messwert', d.stale ? word('veraltet (stale)') : word('gültig'), d.stale ? 'warn' : 'good'));
+  ks.push(kvRow('Zuletzt gesehen', word(rel(d.last_seen)), staleOld ? 'warn' : ''));
+  ks.push(kvRow('Firmware', d.fw || '–'));
+  $('kvSensor').innerHTML = ks.join('');
+}
+
+// ── Trends ──
+function spark(points) {
+  if (!points || points.length < 2) return '';
+  const xs = points.map(p => p[0]), ys = points.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (y1 - y0 < 0.5) { const m = (y0+y1)/2; y0 = m-0.5; y1 = m+0.5; }
+  const W = 200, H = 30, px = t => (t-x0)/(x1-x0||1)*W, py = v => H-2 - (v-y0)/(y1-y0)*(H-6);
+  const pts = points.map(p => px(p[0]).toFixed(1)+','+py(p[1]).toFixed(1)).join(' ');
+  const area = `0,${H} ${pts} ${W},${H}`;
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polygon class="tarea" points="${area}"/><polyline points="${pts}"/></svg>`;
+}
+function renderHistory(h) {
+  const rows = [];
+  const cfg = [
+    ['level', 'Füllstand (Abstand)', v => num(v) + ' cm'],
+    ['batt',  'Akku',                v => num(v,0) + ' %']
+  ];
+  for (const [key, label, fmt] of cfg) {
+    const pts = h[key];
+    if (!pts || pts.length < 2) continue;
+    const last = pts[pts.length-1][1];
+    rows.push(`<div class="trend-row"><div class="trend-head"><span class="tl">${label}</span><span class="tv">${fmt(last)}</span></div>${spark(pts)}</div>`);
+  }
+  $('trendList').innerHTML = rows.length ? rows.join('') : '<div class="trend-empty">Noch keine Archivdaten.</div>';
+}
+
+// ══ Poll-Loop ══
+let failCount = 0;
+async function tick() {
+  try {
+    const d = await fetchJson('status');
+    render(d);
+    failCount = 0;
+    $('connBanner').classList.add('hidden');
+    $('footer').classList.remove('offline');
+    $('connText').textContent = MOCK ? 'Mock-Daten' : 'Verbunden';
+    $('lastUpdate').textContent = 'Stand ' + fmtClock(Date.now());
+  } catch (e) {
+    if (++failCount >= 2) {
+      $('connBanner').classList.remove('hidden');
+      $('footer').classList.add('offline');
+      $('connText').textContent = 'Offline';
+    }
+  }
+}
+async function tickHist() {
+  try { renderHistory(await fetchJson('history')); } catch (e) { /* still ok */ }
+}
+$('connRetry').addEventListener('click', tick);
+$('ackBtn').addEventListener('click', async () => {
+  try {
+    await fetchJson('ack');
+    toast('Sperre quittiert');
+    tick();
+  } catch (e) { toast('Fehler beim Quittieren', true); }
+});
+function toast(msg, err=false) {
+  const t = $('toast');
+  t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+tick(); tickHist();
+setInterval(tick, POLL_MS);
+setInterval(tickHist, HIST_MS);
+
+// ══ Mock (Ansicht per file:// oder ?mock testen) ══
+function MOCK_DATA() {
+  return {
+    level_cm: 12.3, missing_cm: 2.3, missing_l: 523, battery_v: 3.92, battery_pct: 71,
+    stale: false, last_seen: Math.floor(Date.now()/1000) - 340, rssi: -66, fw: '2.0.7',
+    refill_state: 2, active_refill: true, refill_today: 15, refill_last: Math.floor(Date.now()/1000) - 600,
+    refill_info: '15.07. 21:04 Nachfüllung: 15 min gestartet (erwarteter Anstieg 3,3 cm).',
+    flow_measured: 49.5, calib_last: Math.floor(Date.now()/1000) - 86400,
+    target_cm: 10, tolerance_cm: 0.5, pool_area: 22.75, max_run_min: 15, budget_min: 40, auto_refill: true,
+    water_temp: 26.4, pump_stage: 3, pump_rpm: 2400, ph: 7.21, redox: 704
+  };
+}
+function MOCK_HIST() {
+  const now = Math.floor(Date.now()/1000), lvl = [], bat = [];
+  for (let i = 96; i >= 0; i--) {
+    const t = now - i*1800;
+    lvl.push([t, 10 + 3*Math.abs(Math.sin(i/22)) + (i<10 ? -1.2 : 0)]);
+    bat.push([t, 74 - (96-i)*0.04]);
+  }
+  return { level: lvl, batt: bat };
+}
+</script>
+</body>
+</html>

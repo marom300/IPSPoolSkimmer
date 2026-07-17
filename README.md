@@ -235,6 +235,36 @@ spielen keine Rolle, weil nur zählt, wie schnell der Pegel oben steigt.
 
 ---
 
+## Dashboard (ab v2.0)
+
+Das Modul liefert ein fertiges **Pool-Dashboard** selbst aus (gleiches
+Design-System wie das StiebelWPM-Dashboard: Glas auf Anthrazit, Cyan-Glow):
+
+- **Anlagenschema** mit animierten Wasserflüssen: Becken (Wassertemperatur,
+  pH, Redox) → Skimmer mit Sensor (Abstand, Messstrahl) → Pumpe (dreht bei
+  laufender Pumpe, Stufe/RPM) → Filter → Rücklauf/Düsen. Der
+  **Frischwasser-Strang** leuchtet grün, solange eine Nachfüll-Portion läuft.
+- **Nachfüll-Karte:** Status, Automatik, Auffüll-Modus, Tagesbudget, letzte
+  Portion, Zuflussrate, Ziel-Abstand, Protokollzeile – plus Button
+  „Sperre quittieren" (erscheint nur bei Status GESPERRT).
+- **Sensor-Karte:** Akku, WLAN, Messwert-Gültigkeit, zuletzt gesehen, Firmware.
+- **Trends:** Sparklines der letzten 48 h (Füllstand, Akku) aus dem Archiv.
+
+**Aufruf:** `http://<Symcon-IP>:3777/hook/poolskimmer<InstanzID>` – direkt im
+Browser oder als URL im IPSView-WebView. Der Hook wird beim Übernehmen der
+Instanz-Einstellungen automatisch registriert. Titel/Untertitel sind im
+Formular einstellbar.
+
+Endpoints des Hooks: ohne Parameter = HTML; `?action=status` = Live-JSON
+(inkl. der verknüpften Violet-Werte); `?action=history` = 48-h-Archivdaten;
+`?action=ack` = Nachfüll-Sperre quittieren. Lokaler Test der HTML-Datei ohne
+Symcon: im Browser mit `?mock` öffnen (bzw. per `file://` – dann laufen
+Beispieldaten).
+
+Die Werte aus der Violet-Steuerung (Wassertemperatur, Pumpenstufe, RPM, pH,
+Redox) kommen über die **Dashboard-Verknüpfungen** ins Schema – nicht
+verknüpfte Werte werden einfach ausgeblendet.
+
 ## Config-JSON (Referenz, `<base>/config`)
 
 ```json
