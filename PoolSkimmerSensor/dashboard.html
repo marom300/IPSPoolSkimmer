@@ -865,8 +865,8 @@ const SET_PLAN = [
     opts:[{v:'daily',t:'Täglich'},{v:'interval',t:'Intervall'}] },
   { key:'WakeHour', type:'num', label:'Mess-Stunde', sub:'nur Modus Täglich', val:d => d.wake_hour, step:1, min:0, max:23, unit:' Uhr' },
   { key:'WakeMin', type:'num', label:'Mess-Minute', val:d => d.wake_min, step:5, min:0, max:59, unit:' min' },
-  { key:'IntervalMin', type:'num', label:'Mess-Intervall', sub:'nur Modus Intervall', val:d => d.interval_min, step:5, min:1, max:1440, unit:' min' },
-  { key:'CheckinMin', type:'num', label:'Config-Check-in', sub:'0 = aus', val:d => d.checkin_min, step:10, min:0, max:1440, unit:' min' },
+  { key:'IntervalMin', type:'num', label:'Mess-Intervall', sub:'nur Modus Intervall', val:d => d.interval_min, step:1, min:1, max:1440, unit:' min' },
+  { key:'CheckinMin', type:'num', label:'Config-Check-in', sub:'0 = aus', val:d => d.checkin_min, step:5, min:0, max:1440, unit:' min' },
   { key:'OffsetCm', type:'num', label:'Kalibrier-Offset', val:d => d.offset_cm, step:0.1, min:-100, max:100, unit:' cm', dec:1 },
   { key:'NMeas', type:'num', label:'Einzelmessungen', sub:'Median pro Zyklus', val:d => d.n_meas, step:1, min:3, max:50, unit:'' },
   { key:'RetryMin', type:'num', label:'Sende-Retry-Basis', sub:'0 = aus', val:d => d.retry_min, step:1, min:0, max:60, unit:' min' }
@@ -903,6 +903,7 @@ function renderSetList(el, list, d) {
   }).join('');
 }
 function renderSettings(d) {
+  if (Object.keys(wheelPending).length) return;   // Mausrad-Eingabe laeuft - nicht ueberschreiben
   renderSetList($('setPlan'), SET_PLAN, d);
   renderSetList($('setRefill'), SET_REFILL, d);
   $('cfgCalibMeta').textContent = d?.calib_last
@@ -931,6 +932,31 @@ async function sendCfg(key, value) {
 }
 $('setPlan').addEventListener('click', onSetClick);
 $('setRefill').addEventListener('click', onSetClick);
+
+// ── Mausrad über einem Stepper ändert den Wert ──
+// Ticks werden gesammelt (sofortiges Anzeige-Feedback) und erst nach kurzer
+// Pause gebündelt gesendet - sonst je Rad-Tick ein Request + PIN-Abfrage.
+const wheelPending = {};
+let wheelTimer = null;
+function onSetWheel(e) {
+  const st = e.target.closest('.stepper'); if (!st || !lastData) return;
+  const btn = st.querySelector('button[data-key]'); if (!btn) return;
+  const s = [...SET_PLAN, ...SET_REFILL].find(x => x.key === btn.dataset.key); if (!s) return;
+  e.preventDefault();
+  const base = wheelPending[s.key] ?? Number(s.val(lastData)) ?? 0;
+  let v = base + (e.deltaY < 0 ? s.step : -s.step);
+  v = Math.min(s.max, Math.max(s.min, s.dec ? Math.round(v * 10) / 10 : Math.round(v)));
+  wheelPending[s.key] = v;
+  st.querySelector('.sval').textContent = fmtSet(s, v);
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(async () => {
+    const jobs = Object.entries(wheelPending);
+    Object.keys(wheelPending).forEach(k => delete wheelPending[k]);
+    for (const [k, val] of jobs) await sendCfg(k, val);
+  }, 600);
+}
+$('setPlan').addEventListener('wheel', onSetWheel, { passive: false });
+$('setRefill').addEventListener('wheel', onSetWheel, { passive: false });
 function toast(msg, err=false) {
   const t = $('toast');
   t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show');

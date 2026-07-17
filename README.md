@@ -309,6 +309,12 @@ verstellen (PIN-geschützt) – ohne Symcon-Konsole:
   Max. pro Portion, Tagesbudget, Dauer Kalibrierlauf. Oben rechts steht
   **„zuletzt kalibriert: … · x l/min"**.
 
+Bedienung: **+/−-Tasten** oder **Mausrad über dem Wert** (Rad-Ticks werden
+gesammelt und ~0,6 s nach dem letzten Tick gebündelt gesendet – die Anzeige
+folgt sofort). Ein **„Konfiguration an Sensor senden" ist nicht nötig**: Jede
+Messplan-Änderung landet automatisch im Briefkasten und wird beim nächsten
+Aufwachen übernommen (spätestens nach `Config-Check-in` Minuten).
+
 Jede Änderung wird mit altem Kontext ins Protokoll geschrieben. In der
 Symcon-Konsole bleiben nur die einmaligen Grundeinstellungen
 (Pooloberfläche, Start-Skript, Plausibilitätsband, PIN, Verknüpfungen).
