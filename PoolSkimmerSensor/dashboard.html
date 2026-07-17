@@ -196,6 +196,21 @@ main { grid-template-areas: "s" "p" "t"; }
 .pinpad button:active { background: rgba(255,255,255,.14); }
 .pinpad button.ok { background: rgba(58,223,124,.12); border-color: rgba(58,223,124,.5); color: var(--green); }
 .dlg .cancel { font-size:13px; }
+.dlg .confirm-text { font-size:13px; color: var(--text-dim); text-align:center; line-height:1.5; }
+.dlg .confirm-yes { background: rgba(58,223,124,.12); border-color: rgba(58,223,124,.5); color: var(--green); }
+.cmd-btn.stop { border-color: rgba(255,92,92,.55); background: var(--red-dim); color: #ffc9c9; }
+.cmd-btn.stop:hover { border-color: var(--red); box-shadow: 0 4px 18px rgba(255,92,92,.2); background: rgba(255,92,92,.22); }
+
+/* ── Vorgangs-Protokoll (unter dem Schema) ── */
+.log-list {
+  flex: none; margin-top: clamp(5px,1cqi,8px); max-height: 96px; overflow-y: auto;
+  font-family: var(--mono); font-size: 10.5px; line-height: 1.5; color: var(--text-dim);
+  border-top: 1px solid rgba(255,255,255,.06); padding-top: 5px;
+}
+.log-list .warn { color: var(--amber); }
+@media (min-width: 1000px) and (max-height: 840px) {
+  .log-list { max-height: 76px; font-size: 9.5px; }
+}
 
 .info-line { margin-top:auto; padding-top: clamp(6px,1.6cqi,9px); font-size: clamp(10px,2.9cqi,11.5px); color: var(--text-faint); line-height:1.45; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 
@@ -390,6 +405,7 @@ footer .spacer { flex: 1; }
         <text class="lbl" x="390" y="72" text-anchor="middle">Rücklauf · Düsen</text>
       </svg>
     </div>
+    <div class="log-list" id="logList"></div>
   </section>
 
   <!-- P: Nachfüllung + Sensor -->
@@ -445,6 +461,16 @@ footer .spacer { flex: 1; }
   </div>
 </div>
 
+<!-- Bestätigungs-Dialog -->
+<div class="overlay" id="confirmOverlay">
+  <div class="dlg">
+    <div class="dlg-title" id="confirmTitle">Bestätigen</div>
+    <div class="confirm-text" id="confirmText"></div>
+    <button class="cancel confirm-yes" id="confirmYes">Ja, starten</button>
+    <button class="cancel" id="confirmNo">Abbrechen</button>
+  </div>
+</div>
+
 <script>
 // ══ Konfiguration ══
 const HOOK = '__HOOK__';                 // wird vom Modul ersetzt
@@ -480,7 +506,7 @@ const rel = ts => {
 
 // ══ Provider ══
 async function fetchJson(action) {
-  if (MOCK) return action === 'history' ? MOCK_HIST() : MOCK_DATA();
+  if (MOCK) return action === 'history' ? MOCK_HIST() : (action === 'log' ? MOCK_LOG() : MOCK_DATA());
   const res = await fetch(HOOK + '?action=' + action, { cache:'no-store' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   return await res.json();
@@ -507,8 +533,9 @@ function render(d) {
   lastData = d;
   const state = REFILL_STATE[d.refill_state] ?? REFILL_STATE[0];
   const pumpOn = Number(d.pump_rpm) > 0 || Number(d.pump_stage) > 0;
-  // Frischwasser an: Modul-Portion laeuft ODER externes Ventil/Zone aktiv
-  const refillOn = d.refill_state === 2 || Number(d.refill_valve) > 0 || d.refill_valve === true;
+  // Frischwasser an: exakte Ventil-Uhr des Moduls (sekundengenau, ohne
+  // Beruhigungspuffer) ODER externer Zonen-/Ventilstatus (Cloud, traege)
+  const refillOn = !!d.valve_running || Number(d.refill_valve) > 0 || d.refill_valve === true;
   const staleOld = d.last_seen && (Date.now()/1000 - d.last_seen) > 26*3600;
 
   // Header
@@ -574,8 +601,12 @@ function render(d) {
   // Steuer-Buttons: Zustand & Verfuegbarkeit
   $('btnAuto').classList.toggle('on', !!d.auto_refill);
   $('btnAuto').textContent = d.auto_refill ? 'Automatik EIN' : 'Automatik AUS';
-  $('btnPortion').disabled = !!d.pending || d.refill_state === 4;
-  $('btnCalib').disabled   = !!d.pending || d.refill_state === 4;
+  const pending = !!d.pending;
+  const bp = $('btnPortion');
+  bp.classList.toggle('stop', pending);           // laufende Portion -> Stopp-Button
+  bp.textContent = pending ? '■ Stoppen' : 'Portion …';
+  bp.disabled = !pending && d.refill_state === 4;
+  $('btnCalib').disabled = pending || d.refill_state === 4;
 
   // ── Sensor (Abstand/Fehlmenge stehen bereits im Schema) ──
   const ks = [];
@@ -688,8 +719,24 @@ async function sendCmd(cmd, value) {
       sessionStorage.setItem('psk_pin', pin);
     }
     toast(j.msg || (j.ok ? 'OK' : 'Fehler'), !j.ok);
-    tick();
+    tick(); tickLog();
   } catch (e) { toast('Keine Verbindung', true); }
+}
+
+function askConfirm(title, text) {
+  return new Promise(resolve => {
+    const ov = $('confirmOverlay');
+    $('confirmTitle').textContent = title;
+    $('confirmText').textContent = text;
+    const done = (val) => {
+      ov.classList.remove('show');
+      $('confirmYes').onclick = $('confirmNo').onclick = null;
+      resolve(val);
+    };
+    $('confirmYes').onclick = () => done(true);
+    $('confirmNo').onclick = () => done(false);
+    ov.classList.add('show');
+  });
 }
 
 function pickPortion() {
@@ -707,18 +754,38 @@ function pickPortion() {
 }
 
 $('btnAuto').addEventListener('click', () => sendCmd('auto', !(lastData?.auto_refill)));
-$('btnCalib').addEventListener('click', () => sendCmd('calib'));
-$('btnPortion').addEventListener('click', pickPortion);
+$('btnCalib').addEventListener('click', async () => {
+  const min = lastData?.calib_min || 10;
+  if (await askConfirm('Kalibrierlauf', `Jetzt ${min} Minuten füllen, um die Zuflussrate zu messen? (Abbrechen danach über "Stoppen" möglich.)`)) {
+    sendCmd('calib');
+  }
+});
+$('btnPortion').addEventListener('click', () => {
+  if (lastData?.pending) { sendCmd('stop'); }   // laufende Portion/Kalibrierung stoppen
+  else { pickPortion(); }
+});
 $('ackBtn').addEventListener('click', () => sendCmd('ack'));
+
+// ── Vorgangs-Protokoll ──
+async function tickLog() {
+  try {
+    const log = await fetchJson('log');
+    if (!Array.isArray(log)) return;
+    $('logList').innerHTML = log.map(e =>
+      `<div class="${/GESPERRT|GESTOPPT|⚠|FEHL/i.test(e.msg) ? 'warn' : ''}">${e.msg}</div>`
+    ).join('') || '<div>Noch keine Vorgänge protokolliert.</div>';
+  } catch (e) { /* offline */ }
+}
 function toast(msg, err=false) {
   const t = $('toast');
   t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-tick(); tickHist();
+tick(); tickHist(); tickLog();
 setInterval(tick, POLL_MS);
 setInterval(tickHist, HIST_MS);
+setInterval(tickLog, 60000);
 
 // ══ Mock (Ansicht per file:// oder ?mock testen) ══
 function MOCK_DATA() {
@@ -731,8 +798,16 @@ function MOCK_DATA() {
     target_cm: 10, tolerance_cm: 0.5, pool_area: 22.75, max_run_min: 15, budget_min: 40, auto_refill: true,
     water_temp: 26.4, pump_stage: 3, pump_rpm: 2400, ph: 7.21, redox: 704,
     chlorine: 0.11, probe_flow: 12.0, dose_ph: 120, dose_cl: 60, refill_valve: 0,
-    pin_required: true, pending: false
+    valve_running: true, pin_required: true, pending: false
   };
+}
+function MOCK_LOG() {
+  return [
+    { ts: 0, msg: '17.07. 10:58 Nachfüllung: 15 min gestartet (erwarteter Anstieg 2,2 cm).' },
+    { ts: 0, msg: '17.07. 10:47 Kalibrierlauf: +1,5 cm in 10 min = 34,1 l/min – als Zuflussrate übernommen.' },
+    { ts: 0, msg: '16.07. 23:32 Sperre quittiert.' },
+    { ts: 0, msg: '16.07. 21:00 ⚠ ERFOLGSKONTROLLE FEHLGESCHLAGEN: nur +0,1 cm statt ~2,2 cm. Nachfüllen GESPERRT.' }
+  ];
 }
 function MOCK_HIST() {
   const now = Math.floor(Date.now()/1000), lvl = [], bat = [];

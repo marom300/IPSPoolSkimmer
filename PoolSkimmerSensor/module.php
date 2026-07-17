@@ -94,6 +94,7 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterAttributeBoolean('CalibPending', false);
         $this->RegisterAttributeInteger('CalibRunMin', 0);
         $this->RegisterAttributeBoolean('ActiveRefill', false);  // Auffuell-Modus (enges Intervall)
+        $this->RegisterAttributeInteger('ValveUntil', 0);        // Ventil offen bis (exakte Portionsdauer)
     }
 
     public function ApplyChanges()
@@ -183,7 +184,8 @@ class PoolSkimmerSensor extends IPSModule
         // LastRefill, LastCalib) werden bewusst NICHT geloggt.
         $idents = ['WaterLevel', 'BatteryV', 'BatteryPct', 'MissingCm', 'MissingLiters',
                    'TodayRefillMin', 'RSSI', 'RefillState', 'Stale', 'CalcFlowRate',
-                   'ActiveRefillMode'];
+                   'ActiveRefillMode',
+                   'RefillInfo'];   // String-Log -> Archiv = lueckenloses Vorgangs-Protokoll
         $changed = false;
         foreach ($idents as $ident) {
             $vid = @$this->GetIDForIdent($ident);
@@ -400,6 +402,7 @@ class PoolSkimmerSensor extends IPSModule
         $this->WriteAttributeFloat('PreRefillCm', $preLevelCm);
         $this->WriteAttributeFloat('ExpectedRiseCm', $expRise);
         $this->WriteAttributeInteger('PendingUntil', time() + $runMin * 60 + 300); // + 5 min Puffer
+        $this->WriteAttributeInteger('ValveUntil', time() + $runMin * 60);         // exakte Ventil-Laufzeit
         $this->WriteAttributeBoolean('CalibPending', $calib);
         $this->WriteAttributeInteger('CalibRunMin', $runMin);
 
@@ -499,6 +502,22 @@ class PoolSkimmerSensor extends IPSModule
         $this->WriteAttributeInteger('PendingUntil', 0);
         $this->info('Sperre quittiert.');
         echo 'Sperre quittiert.';
+    }
+
+    public function StopPortion(): void
+    {
+        $scriptID = $this->ReadPropertyInteger('RefillScriptID');
+        if ($scriptID > 0 && IPS_ScriptExists($scriptID)) {
+            // DURATION = -1 -> Start-Skript sendet Zonen-Stopp (ZoneAction -1)
+            IPS_RunScriptEx($scriptID, ['DURATION' => -1, 'SENDER' => 'PoolSkimmer']);
+        }
+        $this->WriteAttributeInteger('PendingUntil', 0);
+        $this->WriteAttributeInteger('ValveUntil', 0);
+        $this->WriteAttributeBoolean('CalibPending', false);
+        $this->exitActiveRefill('manuell gestoppt');
+        $this->SetValue('RefillState', $this->ReadPropertyBoolean('AutoRefill') ? self::ST_READY : self::ST_OFF);
+        $this->warn('Portion/Kalibrierlauf manuell GESTOPPT.');
+        echo 'Stopp gesendet.';
     }
 
     public function ManualPortion(int $Minutes): void
@@ -715,6 +734,11 @@ class PoolSkimmerSensor extends IPSModule
             echo json_encode($this->buildHistoryData());
             return;
         }
+        if ($action === 'log') {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode($this->buildLogData());
+            return;
+        }
         if ($action === 'cmd') {
             header('Content-Type: application/json; charset=utf-8');
             $payload = json_decode((string)file_get_contents('php://input'), true);
@@ -745,6 +769,9 @@ class PoolSkimmerSensor extends IPSModule
                         break;
                     case 'portion':
                         $this->ManualPortion((int)$val);
+                        break;
+                    case 'stop':
+                        $this->StopPortion();
                         break;
                     case 'ack':
                         $this->AcknowledgeLock();
@@ -800,7 +827,36 @@ class PoolSkimmerSensor extends IPSModule
         $d['auto_refill']  = $this->ReadPropertyBoolean('AutoRefill');
         $d['pin_required'] = $this->ReadPropertyString('PinCode') !== '';
         $d['pending']      = $this->ReadAttributeInteger('PendingUntil') > time();
+        // Ventil-Anzeige: exakte Laufzeit modulgesteuerter Portionen (kein
+        // 5-min-Puffer, keine Cloud-Latenz)
+        $d['valve_running'] = $this->ReadAttributeInteger('ValveUntil') > time();
+        $d['calib_min']     = $this->ReadPropertyInteger('CalibMinutes');
         return $d;
+    }
+
+    /**
+     * Letzte Protokoll-Eintraege (RefillInfo-Archiv) fuer die Dashboard-Liste
+     * und zur Rekonstruktion im Fehlerfall.
+     */
+    private function buildLogData(): array
+    {
+        $archList = IPS_GetInstanceListByModuleID('{43192F0B-135B-4CE7-A0A7-1475603F3060}');
+        $vid = @$this->GetIDForIdent('RefillInfo');
+        if (count($archList) === 0 || $vid === false || $vid <= 0) {
+            return [];
+        }
+        $vals = @AC_GetLoggedValues($archList[0], $vid, time() - 60 * 86400, time(), 40);
+        if (!is_array($vals)) {
+            return [];
+        }
+        $out = [];
+        foreach ($vals as $v) {                       // AC liefert neueste zuerst
+            $msg = trim((string)$v['Value']);
+            if ($msg !== '') {
+                $out[] = ['ts' => (int)$v['TimeStamp'], 'msg' => $msg];
+            }
+        }
+        return $out;
     }
 
     private function buildHistoryData(): array

@@ -101,7 +101,7 @@ Aufruf, egal woher die Werte stammen.
 | **pH-Wert** / **Chlor (mg/l)** / **Redox** | Wasserchemie-Zeile im Becken |
 | **Sondenanströmung (cm/s)** | beim Filter |
 | **Tagesdosierung pH− / Chlor** | Zeile „Dosierung heute: …" im Becken |
-| **Frischwasser-Ventil/Zone aktiv** | z. B. Zonenstatus der Hunter-Nachfüllzone: lässt den Frischwasser-Strang auch bei **manueller** Bewässerung grün fließen (ohne diese Verknüpfung leuchtet er nur bei modulgesteuerten Portionen) |
+| **Frischwasser-Ventil/Zone aktiv** | z. B. Zonenstatus der Hunter-Nachfüllzone: lässt den Frischwasser-Strang auch bei **manueller** Bewässerung grün fließen. Für **modulgesteuerte** Portionen ist diese Verknüpfung nicht nötig – da nutzt das Dashboard eine interne, **sekundengenaue Ventil-Uhr** (Startzeit + beauftragte Dauer, ohne Cloud-Latenz). Achtung: Der Hydrawise-Zonenstatus kommt über Hunters Cloud und hinkt mehrere Minuten hinterher – für eine schnelle Anzeige manueller Läufe besser eine **lokale Rückmeldung** verlinken (z. B. 24-V-Koppelrelais am Ventilkreis auf einen Shelly-Eingang). |
 | **Zusatzwert 1 / 2** | frei belegbar |
 
 ---
@@ -277,9 +277,24 @@ In der Nachfüll-Karte gibt es Steuer-Buttons:
 | Button | Wirkung |
 |---|---|
 | **Automatik EIN/AUS** | schaltet „Automatisches Nachfüllen" um (grün = aktiv) |
-| **Portion …** | startet eine manuelle Portion (Auswahl 5/10/Max min; gekappt auf Max-Portion und Tagesbudget; gesperrt solange eine Portion läuft) |
-| **Kalibrieren** | startet den Kalibrierlauf |
+| **Portion … / ■ Stoppen** | startet eine manuelle Portion (Auswahl 5/10/Max min; gekappt auf Max-Portion und Tagesbudget). **Läuft gerade eine Portion oder ein Kalibrierlauf, wird der Button zum roten Stopp-Button** – er stoppt die Hunter-Zone sofort (Skript wird mit `DURATION = -1` aufgerufen) und setzt den Vorgang zurück. |
+| **Kalibrieren** | startet den Kalibrierlauf – mit **Sicherheitsabfrage** („Jetzt X Minuten füllen …?") vor dem Start |
 | **Sperre quittieren** | erscheint nur bei Status GESPERRT |
+
+**Wichtig für den Stopp-Button:** Das Start-Skript muss den Stopp-Fall kennen –
+bei `DURATION <= 0` die Zone stoppen (`RequestAction($aktionID, -1)`), siehe
+aktualisierte Vorlage `symcon_refill_start.php`.
+
+### Vorgangs-Protokoll
+
+Jeder Vorgang (Portion gestartet/gestoppt, Kalibrierlauf + Ergebnis,
+Erfolgskontrolle, Sperre/Quittierung, Budget erschöpft, Auffüll-Modus
+ein/aus, übersprungene Aktionen mit Grund) wird mit Zeitstempel in die
+Variable **„Nachfüll-Protokoll"** geschrieben. Diese wird **archiviert** –
+die komplette Historie ist also jederzeit rekonstruierbar (Variable →
+„Archiv" in der Konsole). Zusätzlich zeigt das Dashboard die letzten
+Einträge als scrollbare Liste unter dem Anlagenschema (Warnungen in Orange),
+und alles läuft parallel ins Symcon-Meldungsfenster (`LogMessage`).
 
 **PIN-Schutz** (wie beim StiebelWPL-Dashboard): Im Formular unter „Dashboard"
 eine **PIN** setzen – dann verlangt jede Steuer-Aktion die PIN über ein
