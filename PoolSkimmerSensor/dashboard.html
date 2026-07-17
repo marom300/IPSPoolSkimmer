@@ -160,6 +160,43 @@ main { grid-template-areas: "s" "p" "t"; }
 .ack-btn:active { transform: scale(.97); }
 .ack-btn.hidden { display:none; }
 
+/* ── Steuerungs-Buttons ── */
+.btn-grid { display:grid; grid-template-columns: repeat(3,1fr); gap: clamp(5px,1.4cqi,8px); margin-top: clamp(6px,1.6cqi,10px); }
+.cmd-btn {
+  appearance:none; border:1px solid var(--glass-border); background: var(--glass-bg-strong); color: var(--text);
+  border-radius:10px; padding: clamp(6px,1.8cqi,9px) 4px; min-height:34px;
+  font-size: clamp(10px,3cqi,12px); font-weight:600; letter-spacing:.3px; cursor:pointer;
+  transition: transform .15s ease, border-color .25s, box-shadow .25s, background .25s; -webkit-tap-highlight-color: transparent;
+}
+.cmd-btn:hover { border-color: rgba(0,212,255,.5); box-shadow: 0 4px 18px rgba(0,212,255,.15); transform: translateY(-1px); background: rgba(0,212,255,.08); }
+.cmd-btn:active { transform: translateY(0) scale(.97); }
+.cmd-btn.on { border-color: rgba(58,223,124,.55); background: linear-gradient(150deg, rgba(58,223,124,.16), rgba(58,223,124,.04)); color: var(--green); }
+.cmd-btn:disabled { opacity:.4; cursor:default; transform:none; box-shadow:none; }
+
+/* ── Overlays (PIN / Portion) ── */
+.overlay { position:fixed; inset:0; background: rgba(0,0,0,.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); display:none; place-items:center; z-index:60; }
+.overlay.show { display:grid; }
+.dlg {
+  background:#1c1f21; border:1px solid var(--glass-border); border-radius:16px;
+  padding:18px; width:min(300px,86vw); display:flex; flex-direction:column; gap:12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+.dlg-title { font-weight:600; font-size:14px; text-align:center; }
+.pin-display {
+  background: rgba(255,255,255,.05); border:1px solid var(--glass-border); border-radius:9px;
+  font-family: var(--mono); font-size:20px; font-weight:700; letter-spacing:6px;
+  text-align:center; padding:9px 0; min-height:42px; color: var(--cyan);
+}
+.pinpad { display:grid; grid-template-columns: repeat(3,1fr); gap:8px; }
+.pinpad button, .dlg .cancel {
+  appearance:none; background: rgba(255,255,255,.06); border:1px solid var(--glass-border); border-radius:11px;
+  color: var(--text); font-size:17px; font-weight:600; padding:10px 0; cursor:pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pinpad button:active { background: rgba(255,255,255,.14); }
+.pinpad button.ok { background: rgba(58,223,124,.12); border-color: rgba(58,223,124,.5); color: var(--green); }
+.dlg .cancel { font-size:13px; }
+
 .info-line { margin-top:auto; padding-top: clamp(6px,1.6cqi,9px); font-size: clamp(10px,2.9cqi,11.5px); color: var(--text-faint); line-height:1.45; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 
 footer { flex:none; display:flex; align-items:center; gap:8px; font-size:11px; color: var(--text-faint); padding: 0 4px; }
@@ -360,6 +397,11 @@ footer .spacer { flex: 1; }
     <section class="card glass">
       <div class="card-title"><span class="tdot"></span> Nachfüllung <span class="spacer"></span><span class="meta" id="refillMeta"></span></div>
       <div class="kv" id="kvRefill"></div>
+      <div class="btn-grid">
+        <button class="cmd-btn" id="btnAuto">Automatik</button>
+        <button class="cmd-btn" id="btnPortion">Portion …</button>
+        <button class="cmd-btn" id="btnCalib">Kalibrieren</button>
+      </div>
       <button class="ack-btn hidden" id="ackBtn">Sperre quittieren</button>
       <div class="info-line" id="refillInfo"></div>
     </section>
@@ -378,6 +420,30 @@ footer .spacer { flex: 1; }
 
 <footer id="footer"><span class="conn-dot"></span><span id="connText">Verbinde …</span><span class="spacer"></span><span id="lastUpdate"></span></footer>
 <div class="toast" id="toast"></div>
+
+<!-- PIN-Dialog -->
+<div class="overlay" id="pinOverlay">
+  <div class="dlg">
+    <div class="dlg-title">PIN eingeben</div>
+    <div class="pin-display" id="pinDisplay">&nbsp;</div>
+    <div class="pinpad" id="pinPad">
+      <button>1</button><button>2</button><button>3</button>
+      <button>4</button><button>5</button><button>6</button>
+      <button>7</button><button>8</button><button>9</button>
+      <button data-act="del">⌫</button><button>0</button><button data-act="ok" class="ok">OK</button>
+    </div>
+    <button class="cancel" id="pinCancel">Abbrechen</button>
+  </div>
+</div>
+
+<!-- Portion-Dialog -->
+<div class="overlay" id="portionOverlay">
+  <div class="dlg">
+    <div class="dlg-title">Portion starten</div>
+    <div class="pinpad" id="portionPad" style="grid-template-columns:repeat(3,1fr)"></div>
+    <button class="cancel" id="portionCancel">Abbrechen</button>
+  </div>
+</div>
 
 <script>
 // ══ Konfiguration ══
@@ -435,7 +501,10 @@ function kvRow(key, val, cls='') {
 }
 const word = t => `<span class="word">${t}</span>`;
 
+let lastData = null;
+
 function render(d) {
+  lastData = d;
   const state = REFILL_STATE[d.refill_state] ?? REFILL_STATE[0];
   const pumpOn = Number(d.pump_rpm) > 0 || Number(d.pump_stage) > 0;
   // Frischwasser an: Modul-Portion laeuft ODER externes Ventil/Zone aktiv
@@ -502,6 +571,12 @@ function render(d) {
   $('ackBtn').classList.toggle('hidden', d.refill_state !== 4);
   $('refillInfo').textContent = d.refill_info || '';
 
+  // Steuer-Buttons: Zustand & Verfuegbarkeit
+  $('btnAuto').classList.toggle('on', !!d.auto_refill);
+  $('btnAuto').textContent = d.auto_refill ? 'Automatik EIN' : 'Automatik AUS';
+  $('btnPortion').disabled = !!d.pending || d.refill_state === 4;
+  $('btnCalib').disabled   = !!d.pending || d.refill_state === 4;
+
   // ── Sensor (Abstand/Fehlmenge stehen bereits im Schema) ──
   const ks = [];
   ks.push(kvRow('Akku', num(d.battery_v,2) + ' <small>V</small> · ' + num(d.battery_pct,0) + ' <small>%</small>',
@@ -563,13 +638,78 @@ async function tickHist() {
   try { renderHistory(await fetchJson('history')); } catch (e) { /* still ok */ }
 }
 $('connRetry').addEventListener('click', tick);
-$('ackBtn').addEventListener('click', async () => {
+
+// ══ Steuerung (PIN wie beim StiebelWPL-Dashboard) ══
+let cachedPin = sessionStorage.getItem('psk_pin') || '';
+
+function askPin() {
+  return new Promise(resolve => {
+    const ov = $('pinOverlay'), disp = $('pinDisplay'), pad = $('pinPad');
+    let pin = '';
+    const draw = () => { disp.textContent = pin.length ? '•'.repeat(pin.length) : ' '; };
+    const done = (val) => {
+      ov.classList.remove('show');
+      pad.onclick = $('pinCancel').onclick = null;
+      resolve(val);
+    };
+    pad.onclick = e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const act = b.dataset.act;
+      if (act === 'ok') { done(pin); }
+      else if (act === 'del') { pin = pin.slice(0, -1); draw(); }
+      else if (b.textContent.length === 1 && pin.length < 12) { pin += b.textContent; draw(); }
+    };
+    $('pinCancel').onclick = () => done(null);
+    draw(); ov.classList.add('show');
+  });
+}
+
+async function sendCmd(cmd, value) {
+  if (MOCK) { toast('Mock: ' + cmd + ' ' + (value ?? '')); return; }
+  let pin = '';
+  if (lastData?.pin_required) {
+    pin = cachedPin || await askPin();
+    if (pin === null || pin === '') return;
+  }
   try {
-    await fetchJson('ack');
-    toast('Sperre quittiert');
+    const res = await fetch(HOOK + '?action=cmd', {
+      method: 'POST', cache: 'no-store',
+      body: JSON.stringify({ cmd, value, pin })
+    });
+    const j = await res.json();
+    if (!j.ok && j.error === 'PIN') {
+      cachedPin = '';
+      sessionStorage.removeItem('psk_pin');
+      toast('✕ Falsche PIN', true);
+      return;
+    }
+    if (lastData?.pin_required && pin !== '') {
+      cachedPin = pin;
+      sessionStorage.setItem('psk_pin', pin);
+    }
+    toast(j.msg || (j.ok ? 'OK' : 'Fehler'), !j.ok);
     tick();
-  } catch (e) { toast('Fehler beim Quittieren', true); }
-});
+  } catch (e) { toast('Keine Verbindung', true); }
+}
+
+function pickPortion() {
+  const ov = $('portionOverlay'), pad = $('portionPad');
+  const maxRun = lastData?.max_run_min || 15;
+  const opts = [...new Set([5, 10, maxRun].filter(m => m <= maxRun))];
+  pad.innerHTML = opts.map(m => `<button data-min="${m}">${m} min</button>`).join('');
+  const close = () => { ov.classList.remove('show'); pad.onclick = $('portionCancel').onclick = null; };
+  pad.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    close(); sendCmd('portion', parseInt(b.dataset.min, 10));
+  };
+  $('portionCancel').onclick = close;
+  ov.classList.add('show');
+}
+
+$('btnAuto').addEventListener('click', () => sendCmd('auto', !(lastData?.auto_refill)));
+$('btnCalib').addEventListener('click', () => sendCmd('calib'));
+$('btnPortion').addEventListener('click', pickPortion);
+$('ackBtn').addEventListener('click', () => sendCmd('ack'));
 function toast(msg, err=false) {
   const t = $('toast');
   t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show');
@@ -590,7 +730,8 @@ function MOCK_DATA() {
     flow_measured: 49.5, calib_last: Math.floor(Date.now()/1000) - 86400,
     target_cm: 10, tolerance_cm: 0.5, pool_area: 22.75, max_run_min: 15, budget_min: 40, auto_refill: true,
     water_temp: 26.4, pump_stage: 3, pump_rpm: 2400, ph: 7.21, redox: 704,
-    chlorine: 0.11, probe_flow: 12.0, dose_ph: 120, dose_cl: 60, refill_valve: 0
+    chlorine: 0.11, probe_flow: 12.0, dose_ph: 120, dose_cl: 60, refill_valve: 0,
+    pin_required: true, pending: false
   };
 }
 function MOCK_HIST() {

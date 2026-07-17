@@ -40,6 +40,7 @@ class PoolSkimmerSensor extends IPSModule
         // --- Dashboard ---
         $this->RegisterPropertyString('DashboardTitle', 'Pool');
         $this->RegisterPropertyString('DashboardSubtitle', 'Füllstand & Nachfüllung');
+        $this->RegisterPropertyString('PinCode', '');            // leer = Steuerung ohne PIN
 
         // --- Sensor / MQTT ---
         $this->RegisterPropertyString('BaseTopic', 'pool/skimmer');
@@ -423,6 +424,12 @@ class PoolSkimmerSensor extends IPSModule
 
         $rise = $pre - $this->GetValue('WaterLevel');     // Abstand kleiner = Pegel hoeher
 
+        if ($pre <= 0) {                                  // manuelle Portion ohne Referenzwert
+            $this->info('Portion beendet (keine Erfolgskontrolle - kein Referenzmesswert).');
+            $this->SetValue('RefillState', self::ST_READY);
+            return;
+        }
+
         if ($calib && $runMin > 0) {
             $flow = round(max(0.0, $rise * $this->litersPerCm() / $runMin), 1);
             if ($flow > 0.5) {
@@ -494,6 +501,28 @@ class PoolSkimmerSensor extends IPSModule
         echo 'Sperre quittiert.';
     }
 
+    public function ManualPortion(int $Minutes): void
+    {
+        $this->resetBudgetIfNewDay();
+        if ($this->GetValue('RefillState') === self::ST_LOCKED) {
+            echo 'GESPERRT - erst quittieren.';
+            return;
+        }
+        if ($this->ReadAttributeInteger('PendingUntil') > time()) {
+            echo 'Es läuft bereits eine Portion.';
+            return;
+        }
+        $rest = $this->ReadPropertyInteger('DailyBudgetMin') - $this->GetValue('TodayRefillMin');
+        if ($rest <= 0) {
+            echo 'Tagesbudget erschöpft - heute keine weitere Portion.';
+            return;
+        }
+        $min = max(1, min($Minutes, $this->ReadPropertyInteger('MaxRunMin'), $rest));
+        $level = $this->GetValue('WaterLevel');
+        $this->startPortion($min, $level > 0 ? $level : 0.0, false);
+        echo "Portion ({$min} min) gestartet.";
+    }
+
     public function StartCalibration(): void
     {
         $this->resetBudgetIfNewDay();
@@ -548,9 +577,11 @@ class PoolSkimmerSensor extends IPSModule
     private function publishConfig(int $portal, int $ota): void
     {
         $active = $this->ReadAttributeBoolean('ActiveRefill');
-        // Im Auffüll-Modus: Intervall = Portionsdauer + 5 min Puffer (Portion
-        // läuft + Wasser beruhigt sich, dann misst der Sensor wieder).
-        $activeInterval = max(1, $this->ReadPropertyInteger('MaxRunMin') + 5);
+        // Im Auffüll-Modus im Minutentakt messen: Pegel-Fortschritt ist live
+        // sichtbar und die Folgeportion startet direkt nach der Beruhigungsphase.
+        // (Akku unkritisch - Auffuellphasen sind selten und kurz.)
+        // Die Nachfüll-LOGIK wartet unabhängig davon bis Portionsende + 5 min.
+        $activeInterval = 1;
 
         $cfg = [
             'mode'         => $active ? 'interval' : $this->ReadPropertyString('Mode'),
@@ -684,12 +715,53 @@ class PoolSkimmerSensor extends IPSModule
             echo json_encode($this->buildHistoryData());
             return;
         }
-        if ($action === 'ack') {
-            ob_start();
-            $this->AcknowledgeLock();
-            ob_end_clean();
+        if ($action === 'cmd') {
             header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['ok' => true]);
+            $payload = json_decode((string)file_get_contents('php://input'), true);
+            if (!is_array($payload)) {
+                echo json_encode(['ok' => false, 'error' => 'BAD']);
+                return;
+            }
+            // PIN-Pruefung (wie StiebelWPL): leerer PinCode = offen
+            $pin = $this->ReadPropertyString('PinCode');
+            if ($pin !== '' && (string)($payload['pin'] ?? '') !== $pin) {
+                echo json_encode(['ok' => false, 'error' => 'PIN']);
+                return;
+            }
+            $cmd = (string)($payload['cmd'] ?? '');
+            $val = $payload['value'] ?? null;
+            $ok  = true;
+            $msg = '';
+            ob_start();
+            try {
+                switch ($cmd) {
+                    case 'auto':
+                        IPS_SetProperty($this->InstanceID, 'AutoRefill', (bool)$val);
+                        IPS_ApplyChanges($this->InstanceID);
+                        $msg = $val ? 'Automatik aktiviert' : 'Automatik deaktiviert';
+                        break;
+                    case 'calib':
+                        $this->StartCalibration();
+                        break;
+                    case 'portion':
+                        $this->ManualPortion((int)$val);
+                        break;
+                    case 'ack':
+                        $this->AcknowledgeLock();
+                        break;
+                    default:
+                        $ok = false;
+                        $msg = 'Unbekanntes Kommando';
+                }
+            } catch (Exception $e) {
+                $ok = false;
+                $msg = $e->getMessage();
+            }
+            $inline = trim((string)ob_get_clean());
+            if ($inline !== '' && $msg === '') {
+                $msg = $inline;
+            }
+            echo json_encode(['ok' => $ok, 'msg' => $msg]);
             return;
         }
 
@@ -726,6 +798,8 @@ class PoolSkimmerSensor extends IPSModule
         $d['max_run_min']  = $this->ReadPropertyInteger('MaxRunMin');
         $d['budget_min']   = $this->ReadPropertyInteger('DailyBudgetMin');
         $d['auto_refill']  = $this->ReadPropertyBoolean('AutoRefill');
+        $d['pin_required'] = $this->ReadPropertyString('PinCode') !== '';
+        $d['pending']      = $this->ReadAttributeInteger('PendingUntil') > time();
         return $d;
     }
 

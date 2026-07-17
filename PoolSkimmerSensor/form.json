@@ -17,6 +17,11 @@
                     ]
                 },
                 {
+                    "type": "PasswordTextBox",
+                    "name": "PinCode",
+                    "caption": "PIN für Steuerung im Dashboard (leer = ohne PIN)"
+                },
+                {
                     "type": "Label",
                     "caption": "Aufruf im Browser/IPSView: http://<Symcon-IP>:3777/hook/poolskimmer<InstanzID> (Instanz-ID oben in der Titelzeile ablesen)."
                 }

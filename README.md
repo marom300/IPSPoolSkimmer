@@ -67,7 +67,7 @@ Port, den auch der Sensor anspricht (Standard im Projekt: 1889).
 | Parameter | Standard | Beschreibung |
 |---|---|---|
 | **Automatisches Nachfüllen aktiv** | aus | Hauptschalter. Solange aus, misst und meldet das Modul nur, füllt aber **nie** nach. Erst einschalten, wenn Ziel-Abstand und Zuflussrate korrekt eingestellt und getestet sind. |
-| **Auffüll-Modus** | ein | Bei großem Rückstand (mehr als eine Portion nötig) taktet der Sensor vorübergehend eng, bis der Zielpegel erreicht ist (siehe Abschnitt „Auffüll-Modus"). Aus = klassisch eine Portion pro Messtermin. Das enge Intervall wird automatisch aus „Max. Minuten pro Portion" + 5 min abgeleitet – **keine eigene Einstellung nötig**. |
+| **Auffüll-Modus** | ein | Bei großem Rückstand (mehr als eine Portion nötig) taktet der Sensor vorübergehend im **Minutentakt** (auch während die Portion läuft – Pegel live sichtbar), bis der Zielpegel erreicht ist. Aus = klassisch eine Portion pro Messtermin. Keine eigene Intervall-Einstellung nötig. |
 | **Start-Skript** | – | PHP-Skript, das die Nachfüll-Zone am Bewässerungscomputer startet. Das Modul ruft es mit `$_IPS['DURATION']` (Laufzeit in Minuten) auf. Vorlage: `firmware/symcon_refill_start.php` bzw. Abschnitt „Start-Skript" unten. |
 | **Wasseroberfläche (m²)** | 22,75 | Fläche der Wasseroberfläche. Daraus wird cm → Liter berechnet: 1 cm auf 1 m² = 10 l. Bei 22,75 m² also 227,5 l pro cm. **Nur die Oberfläche nötig** – Volumen/Tiefe sind irrelevant. |
 | **Ziel-Abstand Sensor→Wasser (cm)** | 10 | Der Abstandswert, den der Sensor bei **vollem** Pool (Wunsch-Pegel) misst. Ist der gemessene Abstand größer, fehlt Wasser. Nach dem Einbau einmalig ablesen und eintragen. |
@@ -169,10 +169,13 @@ Mehrlagige Absicherung (von Hardware nach Software):
 
 Reicht **eine** Portion nicht (z. B. 5 cm+ nach einem starken Badetag),
 schaltet das Modul den Sensor **selbst** vorübergehend auf ein enges
-Mess-Intervall (= „Max. Minuten pro Portion" + 5 min Puffer). So misst und füllt
-er nach jeder Portion nach, bis der Zielpegel erreicht ist – statt tagelang auf
-den nächsten Tagestermin zu warten. Danach stellt er automatisch auf den
-normalen Messplan zurück (Akku schonen).
+Mess-Intervall (**Minutentakt**). So ist der Pegel-Fortschritt auch
+**während** der laufenden Portion live sichtbar, und nach Portionsende +
+5 min Beruhigung startet die Folgeportion zügig – bis der Zielpegel erreicht
+ist, statt tagelang auf den nächsten Tagestermin zu warten. Danach stellt er
+automatisch auf den normalen Messplan zurück (Akku schonen). Die
+Nachfüll-Entscheidung selbst wartet immer Portionsende + 5 min ab
+(Erfolgskontrolle); die Zwischenmessungen dienen Anzeige und Archiv.
 
 Damit die Umstellung **sofort** greift und nicht erst am nächsten Tag, holt der
 Sensor direkt nach dem Senden der Messung nochmal die Config ab (Firmware
@@ -266,6 +269,23 @@ Beispieldaten).
 
 Die Werte aus der Violet-Steuerung kommen über die **Dashboard-Verknüpfungen**
 ins Schema – nicht verknüpfte Werte werden einfach ausgeblendet.
+
+### Steuerung im Dashboard (mit PIN)
+
+In der Nachfüll-Karte gibt es Steuer-Buttons:
+
+| Button | Wirkung |
+|---|---|
+| **Automatik EIN/AUS** | schaltet „Automatisches Nachfüllen" um (grün = aktiv) |
+| **Portion …** | startet eine manuelle Portion (Auswahl 5/10/Max min; gekappt auf Max-Portion und Tagesbudget; gesperrt solange eine Portion läuft) |
+| **Kalibrieren** | startet den Kalibrierlauf |
+| **Sperre quittieren** | erscheint nur bei Status GESPERRT |
+
+**PIN-Schutz** (wie beim StiebelWPL-Dashboard): Im Formular unter „Dashboard"
+eine **PIN** setzen – dann verlangt jede Steuer-Aktion die PIN über ein
+Nummernfeld (einmal pro Browser-Sitzung, wird danach gemerkt; falsche PIN
+verwirft den Merker). Leere PIN = Steuerung ohne Abfrage. Die Prüfung läuft
+serverseitig im Modul.
 
 Anzeige-Verhalten:
 - **Touch-Panels:** Ab 1000 px Breite füllt die Seite exakt den Viewport
