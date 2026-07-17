@@ -93,13 +93,16 @@ liefert sie zusammen mit den eigenen Werten gebündelt über
 `PSK_GetDashboardData()` – so braucht das (kommende) Dashboard nur **einen**
 Aufruf, egal woher die Werte stammen.
 
-| Parameter | Zweck |
+| Parameter | Zweck / Anzeige im Dashboard |
 |---|---|
-| **Wassertemperatur** | Temperatur-Variable der Poolsteuerung |
-| **Pumpenstufe** | aktuelle Stufe der Filterpumpe |
-| **Pumpen-Drehzahl (RPM)** | Drehzahl der Pumpe |
-| **pH-Wert** / **Redox** | Wasserchemie |
-| **Zusatzwert 1 / 2** | frei belegbar (z. B. Chlor, Durchfluss) |
+| **Wassertemperatur** | groß im Becken |
+| **Pumpenstufe** | unter der Pumpe; Stufe > 0 startet die Fluss-Animation + drehendes Pumpenrad |
+| **Pumpen-Drehzahl (RPM)** | optional neben der Stufe (Violet liefert i. d. R. nur die Stufen-RPM `PUMP_RPM_0..3`, keine Live-Drehzahl – kann leer bleiben) |
+| **pH-Wert** / **Chlor (mg/l)** / **Redox** | Wasserchemie-Zeile im Becken |
+| **Sondenanströmung (cm/s)** | beim Filter |
+| **Tagesdosierung pH− / Chlor** | Zeile „Dosierung heute: …" im Becken |
+| **Frischwasser-Ventil/Zone aktiv** | z. B. Zonenstatus der Hunter-Nachfüllzone: lässt den Frischwasser-Strang auch bei **manueller** Bewässerung grün fließen (ohne diese Verknüpfung leuchtet er nur bei modulgesteuerten Portionen) |
+| **Zusatzwert 1 / 2** | frei belegbar |
 
 ---
 
@@ -261,9 +264,16 @@ Endpoints des Hooks: ohne Parameter = HTML; `?action=status` = Live-JSON
 Symcon: im Browser mit `?mock` öffnen (bzw. per `file://` – dann laufen
 Beispieldaten).
 
-Die Werte aus der Violet-Steuerung (Wassertemperatur, Pumpenstufe, RPM, pH,
-Redox) kommen über die **Dashboard-Verknüpfungen** ins Schema – nicht
-verknüpfte Werte werden einfach ausgeblendet.
+Die Werte aus der Violet-Steuerung kommen über die **Dashboard-Verknüpfungen**
+ins Schema – nicht verknüpfte Werte werden einfach ausgeblendet.
+
+Anzeige-Verhalten:
+- **Touch-Panels:** Ab 1000 px Breite füllt die Seite exakt den Viewport
+  (kein Scrollen); bei niedriger Fensterhöhe (z. B. 1080p mit 150 %
+  Windows-Skalierung) greift automatisch eine Kompaktstufe.
+- **„Animationen reduzieren"** im Betriebssystem stoppt nur die
+  Einblend-Effekte – die Fluss-/Pumpenanimation läuft weiter (funktionale
+  Anzeige). Das Pumpenrad rotiert per SVG-SMIL exakt um sein Zentrum.
 
 ## Config-JSON (Referenz, `<base>/config`)
 

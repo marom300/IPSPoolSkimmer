@@ -77,6 +77,11 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterPropertyInteger('DashPumpRpm', 0);
         $this->RegisterPropertyInteger('DashPh', 0);
         $this->RegisterPropertyInteger('DashRedox', 0);
+        $this->RegisterPropertyInteger('DashChlorine', 0);      // Chlor (mg/l)
+        $this->RegisterPropertyInteger('DashProbeFlow', 0);     // Sondenanstroemung (cm/s)
+        $this->RegisterPropertyInteger('DashDosePh', 0);        // Tagesdosierung pH-
+        $this->RegisterPropertyInteger('DashDoseCl', 0);        // Tagesdosierung Chlor
+        $this->RegisterPropertyInteger('DashRefillValve', 0);   // Zonen-/Ventilstatus Frischwasser
         $this->RegisterPropertyInteger('DashExtra1', 0);
         $this->RegisterPropertyInteger('DashExtra2', 0);
 
@@ -224,13 +229,18 @@ class PoolSkimmerSensor extends IPSModule
         ];
 
         $links = [
-            'water_temp' => 'DashWaterTemp',
-            'pump_stage' => 'DashPumpStage',
-            'pump_rpm'   => 'DashPumpRpm',
-            'ph'         => 'DashPh',
-            'redox'      => 'DashRedox',
-            'extra1'     => 'DashExtra1',
-            'extra2'     => 'DashExtra2'
+            'water_temp'   => 'DashWaterTemp',
+            'pump_stage'   => 'DashPumpStage',
+            'pump_rpm'     => 'DashPumpRpm',
+            'ph'           => 'DashPh',
+            'redox'        => 'DashRedox',
+            'chlorine'     => 'DashChlorine',
+            'probe_flow'   => 'DashProbeFlow',
+            'dose_ph'      => 'DashDosePh',
+            'dose_cl'      => 'DashDoseCl',
+            'refill_valve' => 'DashRefillValve',
+            'extra1'       => 'DashExtra1',
+            'extra2'       => 'DashExtra2'
         ];
         foreach ($links as $key => $prop) {
             $vid = $this->ReadPropertyInteger($prop);

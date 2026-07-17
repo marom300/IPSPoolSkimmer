@@ -173,7 +173,36 @@ footer .spacer { flex: 1; }
 ::-webkit-scrollbar { width:6px; height:6px; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius:3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+/* Nur die Einblend-Animationen respektieren reduced-motion. Die Fluss-/Pumpen-
+   Animation ist funktional (zeigt "läuft") und bleibt an - sonst wirkt das
+   Dashboard auf Clients mit "Animationen reduzieren" wie eingefroren. */
+@media (prefers-reduced-motion: reduce) { .card, header, .banner { animation-duration:.01ms !important; } }
+
+/* ── Touch-Panel: kein Scrollen — Seite füllt exakt den Viewport ── */
+@media (min-width: 1000px) {
+  body { height: 100dvh; overflow: hidden; }
+}
+/* Kompaktstufe für niedrige Panels (z.B. 1080p mit 150% Windows-Skalierung
+   => nur ~600-720 CSS-px Höhe im Browser/IPSView) */
+@media (min-width: 1000px) and (max-height: 840px) {
+  html { font-size: 11px; }
+  :root { --gap: 6px; }
+  body { padding: 8px; }
+  .card { padding: 8px 10px; }
+  .card-title { font-size: 9.5px; letter-spacing: 1.6px; margin-bottom: 5px; }
+  header { padding: 5px 12px; gap: 8px; }
+  .dev-badge { width: 30px; height: 30px; }
+  .dev-name h1 { font-size: 14px; }
+  .dev-name .sub { font-size: 9px; letter-spacing: 1px; }
+  .chip, .status-pill { padding: 4px 10px; font-size: 11px; }
+  .kv { gap: 3px; }
+  .kv-row { padding-bottom: 2px; }
+  .kv-key { font-size: 10.5px; }
+  .kv-val { font-size: 11.5px; }
+  .trend-row svg { height: 16px; }
+  .info-line { -webkit-line-clamp: 1; font-size: 9.5px; }
+  footer { font-size: 9.5px; }
+}
 
 /* ── Anlagenschema ── */
 .schema-wrap { position:relative; flex:1 1 auto; min-height:0; }
@@ -198,9 +227,8 @@ footer .spacer { flex: 1; }
 .schema-wrap .val.warn { fill: var(--amber); }
 .schema-wrap .icon { stroke: var(--text-dim); transition: stroke .5s; }
 .schema-wrap .icon.on { stroke: var(--cyan); filter: drop-shadow(0 0 6px rgba(0,212,255,.5)); }
-.schema-wrap .spin-g { transform-origin: center; transform-box: fill-box; }
-.schema-wrap .spin-g.spin { animation: fanspin 3.5s linear infinite; }
-@keyframes fanspin { to { transform: rotate(360deg); } }
+/* Pumpenrad rotiert per SMIL (animateTransform) um sein eigenes Zentrum -
+   CSS-transform-origin ist bei SVG je nach WebView unzuverlaessig (Rad "eiert"). */
 .schema-wrap .beam { fill:none; stroke: var(--amber); stroke-width:1.6; stroke-dasharray: 3 5; opacity:.85; }
 
 /* ── Trend-Sparklines ── */
@@ -270,12 +298,14 @@ footer .spacer { flex: 1; }
         <rect class="box" x="30" y="240" width="420" height="168" rx="14"/>
         <rect class="waterfill" x="34" y="266" width="412" height="138" rx="10"/>
         <path class="waterline" d="M40 266 q10 -5 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0"/>
-        <text class="lbl" x="30" y="232">Pool</text>
-        <text class="val dim" id="sPoolMeta" x="78" y="232"></text>
-        <text class="val big accent" id="sTemp" x="240" y="330" text-anchor="middle">–</text>
-        <text class="lbl" x="240" y="350" text-anchor="middle">Wassertemperatur</text>
-        <text class="val dim" id="sPh" x="150" y="388" text-anchor="middle"></text>
-        <text class="val dim" id="sRedox" x="330" y="388" text-anchor="middle"></text>
+        <text class="lbl" x="130" y="232">Pool</text>
+        <text class="val dim" id="sPoolMeta" x="178" y="232"></text>
+        <text class="val big accent" id="sTemp" x="240" y="322" text-anchor="middle">–</text>
+        <text class="lbl" x="240" y="342" text-anchor="middle">Wassertemperatur</text>
+        <text class="val dim" id="sPh" x="120" y="374" text-anchor="middle"></text>
+        <text class="val dim" id="sCl" x="240" y="374" text-anchor="middle"></text>
+        <text class="val dim" id="sRedox" x="360" y="374" text-anchor="middle"></text>
+        <text class="val dim" id="sDose" x="240" y="396" text-anchor="middle"></text>
         <!-- Pegel-Status rechts oben im Becken -->
         <text class="val" id="sLevelState" x="438" y="292" text-anchor="end">–</text>
 
@@ -297,8 +327,11 @@ footer .spacer { flex: 1; }
 
         <!-- ══ Pumpe ══ -->
         <circle cx="607" cy="362" r="27" fill="rgba(255,255,255,.035)" stroke="rgba(255,255,255,.22)" stroke-width="1.4" id="sPumpBox"/>
-        <g id="sFanG" class="spin-g">
-          <g id="sFan" class="icon" transform="translate(590.5,345.5) scale(1.45)" fill="none" stroke-width="0.95" stroke-linecap="round">
+        <g transform="translate(607,362) scale(1.45) translate(-11.4,-11.4)">
+          <g id="sFan" class="icon" fill="none" stroke-width="0.95" stroke-linecap="round">
+            <animateTransform id="fanAnim" attributeName="transform" attributeType="XML"
+                              type="rotate" from="0 11.4 11.4" to="360 11.4 11.4"
+                              dur="3.5s" begin="indefinite" repeatCount="indefinite"/>
             <circle cx="11.4" cy="11.4" r="2"/>
             <path d="M11.4 9.4c-2.3 0-3.2-2.3-2-3.9 1-1.4 2-2.6 2-2.6s1 1.2 2 2.6c1.2 1.6.3 3.9-2 3.9z"/>
             <path d="M11.4 9.4c-2.3 0-3.2-2.3-2-3.9 1-1.4 2-2.6 2-2.6s1 1.2 2 2.6c1.2 1.6.3 3.9-2 3.9z" transform="rotate(120 11.4 11.4)"/>
@@ -307,6 +340,10 @@ footer .spacer { flex: 1; }
         </g>
         <text class="lbl" x="607" y="405" text-anchor="middle">Pumpe</text>
         <text class="val dim" id="sPumpMeta" x="607" y="420" text-anchor="middle">–</text>
+
+        <!-- Sondenanströmung (zwischen Skimmer und Filter) -->
+        <text class="lbl" x="645" y="196" text-anchor="end">Anströmung</text>
+        <text class="val dim" id="sProbeFlow" x="645" y="212" text-anchor="end"></text>
 
         <!-- ══ Filter ══ -->
         <rect class="box" x="655" y="170" width="74" height="97" rx="12"/>
@@ -384,6 +421,15 @@ async function fetchJson(action) {
 }
 
 // ══ Render ══
+// Pumpenrad: SMIL-Rotation starten/stoppen (dreht exakt um das eigene Zentrum)
+let fanRunning = false;
+function setFanSpin(on) {
+  if (on === fanRunning) return;
+  fanRunning = on;
+  const a = document.getElementById('fanAnim');
+  try { on ? a.beginElement() : a.endElement(); } catch (e) { /* alte WebViews */ }
+}
+
 function kvRow(key, val, cls='') {
   return `<div class="kv-row"><span class="kv-key">${key}</span><span class="kv-val ${cls}">${val}</span></div>`;
 }
@@ -392,7 +438,8 @@ const word = t => `<span class="word">${t}</span>`;
 function render(d) {
   const state = REFILL_STATE[d.refill_state] ?? REFILL_STATE[0];
   const pumpOn = Number(d.pump_rpm) > 0 || Number(d.pump_stage) > 0;
-  const refillOn = d.refill_state === 2;
+  // Frischwasser an: Modul-Portion laeuft ODER externes Ventil/Zone aktiv
+  const refillOn = d.refill_state === 2 || Number(d.refill_valve) > 0 || d.refill_valve === true;
   const staleOld = d.last_seen && (Date.now()/1000 - d.last_seen) > 26*3600;
 
   // Header
@@ -409,7 +456,13 @@ function render(d) {
   // ── Schema ──
   $('sTemp').textContent = d.water_temp==null ? '–' : num(d.water_temp) + ' °C';
   $('sPh').textContent = d.ph==null ? '' : 'pH ' + num(d.ph,2);
+  $('sCl').textContent = d.chlorine==null ? '' : 'Cl ' + num(d.chlorine,2) + ' mg/l';
   $('sRedox').textContent = d.redox==null ? '' : 'Redox ' + num(d.redox,0) + ' mV';
+  const doseParts = [];
+  if (d.dose_ph != null) doseParts.push('pH− ' + (d.dose_ph_str || num(d.dose_ph,0) + ' ml'));
+  if (d.dose_cl != null) doseParts.push('Chlor ' + (d.dose_cl_str || num(d.dose_cl,0) + ' ml'));
+  $('sDose').textContent = doseParts.length ? 'Dosierung heute: ' + doseParts.join(' · ') : '';
+  $('sProbeFlow').textContent = d.probe_flow==null ? '' : (d.probe_flow_str || num(d.probe_flow,1) + ' cm/s');
   $('sPoolMeta').textContent = d.pool_area ? '· ' + num(d.pool_area,2) + ' m²' : '';
   $('sDist').textContent = d.level_cm==null ? '–' : num(d.level_cm) + ' cm';
 
@@ -425,7 +478,7 @@ function render(d) {
 
   $('gCirc').classList.toggle('on', pumpOn);
   $('sFan').classList.toggle('on', pumpOn);
-  $('sFanG').classList.toggle('spin', pumpOn);
+  setFanSpin(pumpOn);
   $('sPumpMeta').textContent = d.pump_stage!=null
     ? ('Stufe ' + d.pump_stage + (d.pump_rpm!=null ? ' · ' + num(d.pump_rpm,0) + ' rpm' : ''))
     : (d.pump_rpm!=null ? num(d.pump_rpm,0) + ' rpm' : '–');
@@ -536,7 +589,8 @@ function MOCK_DATA() {
     refill_info: '15.07. 21:04 Nachfüllung: 15 min gestartet (erwarteter Anstieg 3,3 cm).',
     flow_measured: 49.5, calib_last: Math.floor(Date.now()/1000) - 86400,
     target_cm: 10, tolerance_cm: 0.5, pool_area: 22.75, max_run_min: 15, budget_min: 40, auto_refill: true,
-    water_temp: 26.4, pump_stage: 3, pump_rpm: 2400, ph: 7.21, redox: 704
+    water_temp: 26.4, pump_stage: 3, pump_rpm: 2400, ph: 7.21, redox: 704,
+    chlorine: 0.11, probe_flow: 12.0, dose_ph: 120, dose_cl: 60, refill_valve: 0
   };
 }
 function MOCK_HIST() {

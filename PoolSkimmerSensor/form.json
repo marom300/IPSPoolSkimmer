@@ -170,6 +170,11 @@
                 { "type": "SelectVariable", "name": "DashPumpRpm", "caption": "Pumpen-Drehzahl (RPM)" },
                 { "type": "SelectVariable", "name": "DashPh", "caption": "pH-Wert" },
                 { "type": "SelectVariable", "name": "DashRedox", "caption": "Redox" },
+                { "type": "SelectVariable", "name": "DashChlorine", "caption": "Chlor (mg/l)" },
+                { "type": "SelectVariable", "name": "DashProbeFlow", "caption": "Sondenanströmung (cm/s)" },
+                { "type": "SelectVariable", "name": "DashDosePh", "caption": "Tagesdosierung pH−" },
+                { "type": "SelectVariable", "name": "DashDoseCl", "caption": "Tagesdosierung Chlor" },
+                { "type": "SelectVariable", "name": "DashRefillValve", "caption": "Frischwasser-Ventil/Zone aktiv (z.B. Hunter Z4-Status)" },
                 { "type": "SelectVariable", "name": "DashExtra1", "caption": "Zusatzwert 1" },
                 { "type": "SelectVariable", "name": "DashExtra2", "caption": "Zusatzwert 2" },
                 {
