@@ -504,6 +504,67 @@ class PoolSkimmerSensor extends IPSModule
         echo 'Sperre quittiert.';
     }
 
+    /**
+     * Parameter aus dem Dashboard aendern (Whitelist + Bereichspruefung).
+     * Messplan-Parameter werden anschliessend an den Sensor gesendet.
+     */
+    public function SetParam(string $Key, $Value): void
+    {
+        // Key => [Typ, min, max, an Sensor senden?, Klartext, Einheit]
+        $map = [
+            'Mode'           => ['s', 0, 0, true,  'Modus', ''],
+            'WakeHour'       => ['i', 0, 23, true,  'Mess-Stunde', ' Uhr'],
+            'WakeMin'        => ['i', 0, 59, true,  'Mess-Minute', ' min'],
+            'IntervalMin'    => ['i', 1, 1440, true,  'Mess-Intervall', ' min'],
+            'CheckinMin'     => ['i', 0, 1440, true,  'Config-Check-in', ' min'],
+            'OffsetCm'       => ['f', -100, 100, true,  'Kalibrier-Offset', ' cm'],
+            'NMeas'          => ['i', 3, 50, true,  'Einzelmessungen', ''],
+            'RetryMin'       => ['i', 0, 60, true,  'Sende-Retry-Basis', ' min'],
+            'TargetLevelCm'  => ['f', 0, 100, false, 'Ziel-Abstand', ' cm'],
+            'ToleranceCm'    => ['f', 0, 20, false, 'Toleranz', ' cm'],
+            'MaxRunMin'      => ['i', 1, 240, false, 'Max. Minuten pro Portion', ' min'],
+            'DailyBudgetMin' => ['i', 1, 600, false, 'Tagesbudget', ' min'],
+            'CalibMinutes'   => ['i', 1, 60, false, 'Dauer Kalibrierlauf', ' min'],
+            'UseActiveRefill'=> ['b', 0, 0, false, 'Auffüll-Modus', '']
+        ];
+        if (!isset($map[$Key])) {
+            echo 'Unbekannter Parameter.';
+            return;
+        }
+        [$type, $min, $max, $toSensor, $label, $unit] = $map[$Key];
+
+        switch ($type) {
+            case 'i':
+                $v = (int)round((float)$Value);
+                $v = max((int)$min, min((int)$max, $v));
+                IPS_SetProperty($this->InstanceID, $Key, $v);
+                $txt = $v . $unit;
+                break;
+            case 'f':
+                $v = round((float)$Value, 1);
+                $v = max((float)$min, min((float)$max, $v));
+                IPS_SetProperty($this->InstanceID, $Key, $v);
+                $txt = str_replace('.', ',', (string)$v) . $unit;
+                break;
+            case 'b':
+                $v = (bool)$Value;
+                IPS_SetProperty($this->InstanceID, $Key, $v);
+                $txt = $v ? 'ein' : 'aus';
+                break;
+            default:   // string (Mode)
+                $v = ((string)$Value === 'interval') ? 'interval' : 'daily';
+                IPS_SetProperty($this->InstanceID, $Key, $v);
+                $txt = ($v === 'interval') ? 'Intervall' : 'Täglich';
+        }
+
+        IPS_ApplyChanges($this->InstanceID);
+        $this->info(sprintf('%s geändert: %s (Dashboard).', $label, $txt));
+
+        if ($toSensor) {
+            $this->publishConfig(0, 0);     // Briefkasten aktualisieren
+        }
+    }
+
     public function StopPortion(): void
     {
         $scriptID = $this->ReadPropertyInteger('RefillScriptID');
@@ -763,6 +824,10 @@ class PoolSkimmerSensor extends IPSModule
                         IPS_SetProperty($this->InstanceID, 'AutoRefill', (bool)$val);
                         IPS_ApplyChanges($this->InstanceID);
                         $msg = $val ? 'Automatik aktiviert' : 'Automatik deaktiviert';
+                        $this->info('Automatisches Nachfüllen ' . ($val ? 'EINGESCHALTET' : 'AUSGESCHALTET') . ' (Dashboard).');
+                        break;
+                    case 'cfg':
+                        $this->SetParam((string)($payload['key'] ?? ''), $val);
                         break;
                     case 'calib':
                         $this->StartCalibration();
@@ -830,7 +895,17 @@ class PoolSkimmerSensor extends IPSModule
         // Ventil-Anzeige: exakte Laufzeit modulgesteuerter Portionen (kein
         // 5-min-Puffer, keine Cloud-Latenz)
         $d['valve_running'] = $this->ReadAttributeInteger('ValveUntil') > time();
-        $d['calib_min']     = $this->ReadPropertyInteger('CalibMinutes');
+        // --- Konfiguration fuer die Einstellungs-Seite im Dashboard ---
+        $d['mode']              = $this->ReadPropertyString('Mode');
+        $d['wake_hour']         = $this->ReadPropertyInteger('WakeHour');
+        $d['wake_min']          = $this->ReadPropertyInteger('WakeMin');
+        $d['interval_min']      = $this->ReadPropertyInteger('IntervalMin');
+        $d['checkin_min']       = $this->ReadPropertyInteger('CheckinMin');
+        $d['offset_cm']         = $this->ReadPropertyFloat('OffsetCm');
+        $d['n_meas']            = $this->ReadPropertyInteger('NMeas');
+        $d['retry_min']         = $this->ReadPropertyInteger('RetryMin');
+        $d['calib_min']         = $this->ReadPropertyInteger('CalibMinutes');
+        $d['use_active_refill'] = $this->ReadPropertyBoolean('UseActiveRefill');
         return $d;
     }
 
@@ -845,7 +920,7 @@ class PoolSkimmerSensor extends IPSModule
         if (count($archList) === 0 || $vid === false || $vid <= 0) {
             return [];
         }
-        $vals = @AC_GetLoggedValues($archList[0], $vid, time() - 60 * 86400, time(), 40);
+        $vals = @AC_GetLoggedValues($archList[0], $vid, time() - 180 * 86400, time(), 300);
         if (!is_array($vals)) {
             return [];
         }

@@ -201,16 +201,56 @@ main { grid-template-areas: "s" "p" "t"; }
 .cmd-btn.stop { border-color: rgba(255,92,92,.55); background: var(--red-dim); color: #ffc9c9; }
 .cmd-btn.stop:hover { border-color: var(--red); box-shadow: 0 4px 18px rgba(255,92,92,.2); background: rgba(255,92,92,.22); }
 
-/* ── Vorgangs-Protokoll (unter dem Schema) ── */
+/* ── Ansicht-Umschalter (Übersicht | Protokoll | Einstellungen) ── */
+.view-toggle { display:flex; gap:3px; padding:4px; border-radius:999px; border:1px solid var(--glass-border); background: var(--glass-bg-strong); flex:none; }
+.view-toggle button {
+  appearance:none; border:0; background:transparent; color:var(--text-dim);
+  font-size: clamp(10.5px,1vw,12px); font-weight:600; letter-spacing:.4px;
+  padding:5px 12px; border-radius:999px; cursor:pointer; white-space:nowrap;
+  transition: background .25s, color .25s, box-shadow .25s;
+}
+.view-toggle button:hover { color: var(--text); }
+.view-toggle button.on { background: rgba(0,212,255,.14); color: var(--cyan); box-shadow: 0 0 10px rgba(0,212,255,.12); }
+
+/* ── Protokoll-Seite ── */
+/* volle Breite (ID schlaegt die 2-Spalten-Regel der Uebersicht) */
+#view-log { grid-template-columns: minmax(0,1fr); grid-template-areas: "l"; grid-template-rows: minmax(0,1fr); }
+#area-l { grid-area: l; }
 .log-list {
-  flex: none; margin-top: clamp(5px,1cqi,8px); max-height: 96px; overflow-y: auto;
-  font-family: var(--mono); font-size: 10.5px; line-height: 1.5; color: var(--text-dim);
-  border-top: 1px solid rgba(255,255,255,.06); padding-top: 5px;
+  flex:1 1 auto; min-height:0; overflow-y:auto;
+  font-family: var(--mono); font-size: 12px; line-height: 1.85; color: var(--text-dim);
 }
+.log-list div { padding: 2px 4px; border-bottom: 1px solid rgba(255,255,255,.04); }
+.log-list div:hover { background: rgba(255,255,255,.03); }
 .log-list .warn { color: var(--amber); }
-@media (min-width: 1000px) and (max-height: 840px) {
-  .log-list { max-height: 76px; font-size: 9.5px; }
+@media (min-width: 1000px) and (max-height: 840px) { .log-list { font-size: 11px; line-height:1.7; } }
+
+/* ── Einstellungs-Seite ── */
+#view-cfg { grid-template-columns: minmax(0,1fr); grid-template-areas: "c1" "c2"; }
+#area-c1 { grid-area: c1; } #area-c2 { grid-area: c2; }
+@media (min-width: 1000px) { #view-cfg { grid-template-columns: 1fr 1fr; grid-template-areas: "c1 c2"; } }
+.set-list { display:flex; flex-direction:column; gap: clamp(4px,1.2cqi,8px); overflow-y:auto; min-height:0; }
+.set-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-bottom: clamp(3px,1cqi,6px); border-bottom:1px solid rgba(255,255,255,.05); }
+.set-row:last-child { border-bottom:none; }
+.set-label { font-size: clamp(11px,3cqi,13px); color: var(--text-dim); min-width:0; }
+.set-label small { display:block; color: var(--text-faint); font-size:.8em; }
+.stepper { display:flex; align-items:center; gap:5px; flex:none; }
+.stepper button {
+  appearance:none; width:30px; height:30px; border:1px solid var(--glass-border);
+  background: var(--glass-bg-strong); color: var(--text); border-radius:8px;
+  font-size:16px; font-weight:700; cursor:pointer; line-height:1; -webkit-tap-highlight-color:transparent;
 }
+.stepper button:hover { border-color: rgba(0,212,255,.5); color: var(--cyan); background: rgba(0,212,255,.08); }
+.stepper button:active { transform: scale(.94); }
+.stepper .sval { font-family: var(--mono); font-size: clamp(12px,3.4cqi,14px); font-weight:700; color: var(--cyan); min-width:64px; text-align:center; white-space:nowrap; }
+.seg { display:flex; gap:4px; flex:none; }
+.seg button {
+  appearance:none; border:1px solid var(--glass-border); background: var(--glass-bg-strong); color: var(--text-dim);
+  border-radius:8px; padding:6px 10px; font-size: clamp(10px,2.8cqi,12px); font-weight:600; cursor:pointer; white-space:nowrap;
+}
+.seg button.on { border-color: rgba(0,212,255,.55); background: rgba(0,212,255,.14); color: var(--cyan); }
+.seg button.on.green { border-color: rgba(58,223,124,.55); background: rgba(58,223,124,.14); color: var(--green); }
+.cfg-hint { font-size: clamp(9.5px,2.6cqi,11px); color: var(--text-faint); line-height:1.5; margin-top: clamp(5px,1.4cqi,8px); }
 
 .info-line { margin-top:auto; padding-top: clamp(6px,1.6cqi,9px); font-size: clamp(10px,2.9cqi,11.5px); color: var(--text-faint); line-height:1.45; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 
@@ -309,6 +349,11 @@ footer .spacer { flex: 1; }
   </div>
   <div class="dev-name"><h1 id="devName">__TITLE__</h1><div class="sub" id="devSub">__SUBTITLE__</div></div>
   <div class="spacer"></div>
+  <div class="view-toggle" id="viewToggle">
+    <button data-view="ov" class="on">Übersicht</button>
+    <button data-view="log">Protokoll</button>
+    <button data-view="cfg">Einstellungen</button>
+  </div>
   <div class="chip" id="chipTemp"><span class="cl">Wasser</span><span id="chipTempVal">–</span></div>
   <div class="chip" id="chipBatt"><span class="cl">Akku</span><span id="chipBattVal">–</span></div>
   <div class="status-pill" id="statusPill" data-theme="ok"><span class="dot"></span><span id="statusText">–</span></div>
@@ -319,7 +364,7 @@ footer .spacer { flex: 1; }
   <button class="retry" id="connRetry">Erneut versuchen</button>
 </div>
 
-<main>
+<main id="view-ov">
   <!-- S: Anlagenschema -->
   <section class="card glass" id="area-s">
     <div class="card-title"><span class="tdot"></span> Anlage <span class="spacer"></span><span class="meta" id="schemaMeta"></span></div>
@@ -405,7 +450,6 @@ footer .spacer { flex: 1; }
         <text class="lbl" x="390" y="72" text-anchor="middle">Rücklauf · Düsen</text>
       </svg>
     </div>
-    <div class="log-list" id="logList"></div>
   </section>
 
   <!-- P: Nachfüllung + Sensor -->
@@ -431,6 +475,28 @@ footer .spacer { flex: 1; }
   <section class="card glass" id="area-t">
     <div class="card-title"><span class="tdot"></span> Trends <span class="spacer"></span><span class="meta">48 h</span></div>
     <div class="trend-list" id="trendList"><div class="trend-empty">Noch keine Archivdaten.</div></div>
+  </section>
+</main>
+
+<!-- ══ Ansicht 2: Protokoll ══ -->
+<main id="view-log" class="hidden">
+  <section class="card glass" id="area-l">
+    <div class="card-title"><span class="tdot"></span> Vorgangs-Protokoll <span class="spacer"></span><span class="meta" id="logMeta"></span></div>
+    <div class="log-list" id="logList"></div>
+  </section>
+</main>
+
+<!-- ══ Ansicht 3: Einstellungen ══ -->
+<main id="view-cfg" class="hidden">
+  <section class="card glass" id="area-c1">
+    <div class="card-title"><span class="tdot"></span> Messplan (Sensor)</div>
+    <div class="set-list" id="setPlan"></div>
+    <div class="cfg-hint">Änderungen gehen sofort an den Sensor – er übernimmt sie beim nächsten Aufwachen (spätestens nach dem Config-Check-in).</div>
+  </section>
+  <section class="card glass" id="area-c2">
+    <div class="card-title"><span class="tdot"></span> Nachfüllen <span class="spacer"></span><span class="meta" id="cfgCalibMeta"></span></div>
+    <div class="set-list" id="setRefill"></div>
+    <div class="cfg-hint">Pooloberfläche, Start-Skript, Plausibilitätsband und PIN werden weiterhin in der Symcon-Konsole gesetzt (einmalige Grundkonfiguration).</div>
   </section>
 </main>
 
@@ -695,8 +761,8 @@ function askPin() {
   });
 }
 
-async function sendCmd(cmd, value) {
-  if (MOCK) { toast('Mock: ' + cmd + ' ' + (value ?? '')); return; }
+async function sendCmd(cmd, value, key) {
+  if (MOCK) { toast('Mock: ' + cmd + ' ' + (key ? key + '=' : '') + (value ?? '')); return; }
   let pin = '';
   if (lastData?.pin_required) {
     pin = cachedPin || await askPin();
@@ -705,7 +771,7 @@ async function sendCmd(cmd, value) {
   try {
     const res = await fetch(HOOK + '?action=cmd', {
       method: 'POST', cache: 'no-store',
-      body: JSON.stringify({ cmd, value, pin })
+      body: JSON.stringify({ cmd, value, key, pin })
     });
     const j = await res.json();
     if (!j.ok && j.error === 'PIN') {
@@ -719,7 +785,9 @@ async function sendCmd(cmd, value) {
       sessionStorage.setItem('psk_pin', pin);
     }
     toast(j.msg || (j.ok ? 'OK' : 'Fehler'), !j.ok);
-    tick(); tickLog();
+    await tick();                       // frische Werte holen ...
+    if (!$('view-cfg').classList.contains('hidden')) renderSettings(lastData);   // ... und Regler nachziehen
+    tickLog();
   } catch (e) { toast('Keine Verbindung', true); }
 }
 
@@ -774,15 +842,103 @@ async function tickLog() {
     $('logList').innerHTML = log.map(e =>
       `<div class="${/GESPERRT|GESTOPPT|⚠|FEHL/i.test(e.msg) ? 'warn' : ''}">${e.msg}</div>`
     ).join('') || '<div>Noch keine Vorgänge protokolliert.</div>';
+    $('logMeta').textContent = log.length ? log.length + ' Einträge' : '';
   } catch (e) { /* offline */ }
 }
+
+// ══ Ansichten umschalten (auch per URL: ?view=log / ?view=cfg) ══
+function showView(v) {
+  if (!['ov','log','cfg'].includes(v)) v = 'ov';
+  [...$('viewToggle').children].forEach(x => x.classList.toggle('on', x.dataset.view === v));
+  ['ov','log','cfg'].forEach(id => $('view-' + id).classList.toggle('hidden', id !== v));
+  if (v === 'log') tickLog();
+  if (v === 'cfg') renderSettings(lastData);
+}
+$('viewToggle').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  showView(b.dataset.view);
+});
+
+// ══ Einstellungs-Seite ══
+const SET_PLAN = [
+  { key:'Mode', type:'seg', label:'Modus', val:d => d.mode,
+    opts:[{v:'daily',t:'Täglich'},{v:'interval',t:'Intervall'}] },
+  { key:'WakeHour', type:'num', label:'Mess-Stunde', sub:'nur Modus Täglich', val:d => d.wake_hour, step:1, min:0, max:23, unit:' Uhr' },
+  { key:'WakeMin', type:'num', label:'Mess-Minute', val:d => d.wake_min, step:5, min:0, max:59, unit:' min' },
+  { key:'IntervalMin', type:'num', label:'Mess-Intervall', sub:'nur Modus Intervall', val:d => d.interval_min, step:5, min:1, max:1440, unit:' min' },
+  { key:'CheckinMin', type:'num', label:'Config-Check-in', sub:'0 = aus', val:d => d.checkin_min, step:10, min:0, max:1440, unit:' min' },
+  { key:'OffsetCm', type:'num', label:'Kalibrier-Offset', val:d => d.offset_cm, step:0.1, min:-100, max:100, unit:' cm', dec:1 },
+  { key:'NMeas', type:'num', label:'Einzelmessungen', sub:'Median pro Zyklus', val:d => d.n_meas, step:1, min:3, max:50, unit:'' },
+  { key:'RetryMin', type:'num', label:'Sende-Retry-Basis', sub:'0 = aus', val:d => d.retry_min, step:1, min:0, max:60, unit:' min' }
+];
+const SET_REFILL = [
+  { key:'AutoRefill', type:'seg', label:'Automatik', val:d => d.auto_refill ? '1' : '0', green:true,
+    opts:[{v:'0',t:'Aus'},{v:'1',t:'Ein'}] },
+  { key:'UseActiveRefill', type:'seg', label:'Auffüll-Modus', sub:'eng takten bei großem Rückstand', val:d => d.use_active_refill ? '1' : '0',
+    opts:[{v:'0',t:'Aus'},{v:'1',t:'Ein'}] },
+  { key:'TargetLevelCm', type:'num', label:'Ziel-Abstand', sub:'Sensor→Wasser bei vollem Pool', val:d => d.target_cm, step:0.1, min:0, max:100, unit:' cm', dec:1 },
+  { key:'ToleranceCm', type:'num', label:'Toleranz', val:d => d.tolerance_cm, step:0.1, min:0, max:20, unit:' cm', dec:1 },
+  { key:'MaxRunMin', type:'num', label:'Max. pro Portion', val:d => d.max_run_min, step:1, min:1, max:240, unit:' min' },
+  { key:'DailyBudgetMin', type:'num', label:'Tagesbudget', val:d => d.budget_min, step:5, min:1, max:600, unit:' min' },
+  { key:'CalibMinutes', type:'num', label:'Dauer Kalibrierlauf', val:d => d.calib_min, step:1, min:1, max:60, unit:' min' }
+];
+
+function fmtSet(s, v) {
+  if (v == null) return '–';
+  return (s.dec ? num(v, s.dec) : num(v, 0)) + (s.unit || '');
+}
+function renderSetList(el, list, d) {
+  if (!d) { el.innerHTML = ''; return; }
+  el.innerHTML = list.map(s => {
+    const cur = s.val(d);
+    const ctrl = s.type === 'seg'
+      ? `<div class="seg">${s.opts.map(o =>
+          `<button data-key="${s.key}" data-set="${o.v}" class="${String(cur) === o.v ? 'on' + (s.green ? ' green' : '') : ''}">${o.t}</button>`).join('')}</div>`
+      : `<div class="stepper">
+           <button data-key="${s.key}" data-step="${-s.step}">−</button>
+           <span class="sval">${fmtSet(s, cur)}</span>
+           <button data-key="${s.key}" data-step="${s.step}">+</button>
+         </div>`;
+    return `<div class="set-row"><div class="set-label">${s.label}${s.sub ? `<small>${s.sub}</small>` : ''}</div>${ctrl}</div>`;
+  }).join('');
+}
+function renderSettings(d) {
+  renderSetList($('setPlan'), SET_PLAN, d);
+  renderSetList($('setRefill'), SET_REFILL, d);
+  $('cfgCalibMeta').textContent = d?.calib_last
+    ? 'zuletzt kalibriert: ' + new Date(d.calib_last * 1000).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+      + (d.flow_measured > 0 ? ' · ' + num(d.flow_measured) + ' l/min' : '')
+    : 'noch nie kalibriert';
+}
+async function onSetClick(e) {
+  const b = e.target.closest('button'); if (!b || !lastData) return;
+  const key = b.dataset.key; if (!key) return;
+  if (b.dataset.set !== undefined) {                       // Segment-Auswahl
+    const v = b.dataset.set;
+    if (key === 'AutoRefill') { await sendCmd('auto', v === '1'); }
+    else { await sendCfg(key, key === 'Mode' ? v : (v === '1')); }
+  } else {                                                  // Stepper
+    const s = [...SET_PLAN, ...SET_REFILL].find(x => x.key === key); if (!s) return;
+    const cur = Number(s.val(lastData)) || 0;
+    let v = cur + Number(b.dataset.step);
+    v = Math.min(s.max, Math.max(s.min, s.dec ? Math.round(v * 10) / 10 : Math.round(v)));
+    await sendCfg(key, v);
+  }
+  renderSettings(lastData);
+}
+async function sendCfg(key, value) {
+  await sendCmd('cfg', value, key);
+}
+$('setPlan').addEventListener('click', onSetClick);
+$('setRefill').addEventListener('click', onSetClick);
 function toast(msg, err=false) {
   const t = $('toast');
   t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-tick(); tickHist(); tickLog();
+tick().then(() => showView(new URLSearchParams(location.search).get('view') || 'ov'));
+tickHist(); tickLog();
 setInterval(tick, POLL_MS);
 setInterval(tickHist, HIST_MS);
 setInterval(tickLog, 60000);
@@ -798,7 +954,9 @@ function MOCK_DATA() {
     target_cm: 10, tolerance_cm: 0.5, pool_area: 22.75, max_run_min: 15, budget_min: 40, auto_refill: true,
     water_temp: 26.4, pump_stage: 3, pump_rpm: 2400, ph: 7.21, redox: 704,
     chlorine: 0.11, probe_flow: 12.0, dose_ph: 120, dose_cl: 60, refill_valve: 0,
-    valve_running: true, pin_required: true, pending: false
+    valve_running: true, pin_required: true, pending: false,
+    mode: 'daily', wake_hour: 21, wake_min: 0, interval_min: 30, checkin_min: 240,
+    offset_cm: 0, n_meas: 10, retry_min: 5, calib_min: 10, use_active_refill: true
   };
 }
 function MOCK_LOG() {

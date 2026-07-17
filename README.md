@@ -244,7 +244,17 @@ spielen keine Rolle, weil nur zählt, wie schnell der Pegel oben steigt.
 ## Dashboard (ab v2.0)
 
 Das Modul liefert ein fertiges **Pool-Dashboard** selbst aus (gleiches
-Design-System wie das StiebelWPM-Dashboard: Glas auf Anthrazit, Cyan-Glow):
+Design-System wie das StiebelWPM-Dashboard: Glas auf Anthrazit, Cyan-Glow).
+Oben rechts schaltest du zwischen drei Ansichten um – direkt verlinkbar über
+`?view=ov` / `?view=log` / `?view=cfg`:
+
+| Ansicht | Inhalt |
+|---|---|
+| **Übersicht** | Anlagenschema, Nachfüll-Karte mit Steuerung, Sensor-Karte, Trends |
+| **Protokoll** | vollständiges Vorgangs-Protokoll, scrollbar (Warnungen orange) |
+| **Einstellungen** | alle laufenden Parameter direkt verstellbar + „zuletzt kalibriert" |
+
+**Übersicht** enthält:
 
 - **Anlagenschema** mit animierten Wasserflüssen: Becken (Wassertemperatur,
   pH, Redox) → Skimmer mit Sensor (Abstand, Messstrahl) → Pumpe (dreht bei
@@ -261,11 +271,13 @@ Browser oder als URL im IPSView-WebView. Der Hook wird beim Übernehmen der
 Instanz-Einstellungen automatisch registriert. Titel/Untertitel sind im
 Formular einstellbar.
 
-Endpoints des Hooks: ohne Parameter = HTML; `?action=status` = Live-JSON
-(inkl. der verknüpften Violet-Werte); `?action=history` = 48-h-Archivdaten;
-`?action=ack` = Nachfüll-Sperre quittieren. Lokaler Test der HTML-Datei ohne
-Symcon: im Browser mit `?mock` öffnen (bzw. per `file://` – dann laufen
-Beispieldaten).
+Endpoints des Hooks: ohne Parameter = HTML (optional `?view=ov|log|cfg`);
+`?action=status` = Live-JSON (inkl. verknüpfter Violet-Werte und aller
+Konfigwerte); `?action=history` = 48-h-Archivdaten; `?action=log` =
+Vorgangs-Protokoll; `?action=cmd` (POST, JSON `{cmd,value,key,pin}`) =
+Steuerung (`auto`, `portion`, `stop`, `calib`, `ack`, `cfg`). Lokaler Test der
+HTML-Datei ohne Symcon: im Browser mit `?mock` öffnen (bzw. per `file://` –
+dann laufen Beispieldaten).
 
 Die Werte aus der Violet-Steuerung kommen über die **Dashboard-Verknüpfungen**
 ins Schema – nicht verknüpfte Werte werden einfach ausgeblendet.
@@ -285,16 +297,33 @@ In der Nachfüll-Karte gibt es Steuer-Buttons:
 bei `DURATION <= 0` die Zone stoppen (`RequestAction($aktionID, -1)`), siehe
 aktualisierte Vorlage `symcon_refill_start.php`.
 
+### Einstellungen-Ansicht
+
+Alle im Betrieb relevanten Parameter lassen sich **direkt im Dashboard**
+verstellen (PIN-geschützt) – ohne Symcon-Konsole:
+
+- **Messplan:** Modus (Täglich/Intervall), Mess-Stunde/-Minute,
+  Mess-Intervall, Config-Check-in, Kalibrier-Offset, Einzelmessungen,
+  Sende-Retry-Basis. Änderungen gehen **sofort an den Sensor** (Briefkasten).
+- **Nachfüllen:** Automatik, Auffüll-Modus, Ziel-Abstand, Toleranz,
+  Max. pro Portion, Tagesbudget, Dauer Kalibrierlauf. Oben rechts steht
+  **„zuletzt kalibriert: … · x l/min"**.
+
+Jede Änderung wird mit altem Kontext ins Protokoll geschrieben. In der
+Symcon-Konsole bleiben nur die einmaligen Grundeinstellungen
+(Pooloberfläche, Start-Skript, Plausibilitätsband, PIN, Verknüpfungen).
+
 ### Vorgangs-Protokoll
 
 Jeder Vorgang (Portion gestartet/gestoppt, Kalibrierlauf + Ergebnis,
 Erfolgskontrolle, Sperre/Quittierung, Budget erschöpft, Auffüll-Modus
-ein/aus, übersprungene Aktionen mit Grund) wird mit Zeitstempel in die
-Variable **„Nachfüll-Protokoll"** geschrieben. Diese wird **archiviert** –
-die komplette Historie ist also jederzeit rekonstruierbar (Variable →
-„Archiv" in der Konsole). Zusätzlich zeigt das Dashboard die letzten
-Einträge als scrollbare Liste unter dem Anlagenschema (Warnungen in Orange),
-und alles läuft parallel ins Symcon-Meldungsfenster (`LogMessage`).
+ein/aus, **Automatik ein/aus, jede Parameteränderung mit neuem Wert**,
+übersprungene Aktionen mit Grund) wird mit Zeitstempel in die Variable
+**„Nachfüll-Protokoll"** geschrieben. Diese wird **archiviert** – die
+komplette Historie ist jederzeit rekonstruierbar (Variable → „Archiv" in der
+Konsole). Die Dashboard-Ansicht **Protokoll** zeigt die letzten ~300 Einträge
+scrollbar (Warnungen orange); parallel läuft alles ins Symcon-Meldungsfenster
+(`LogMessage`).
 
 **PIN-Schutz** (wie beim StiebelWPL-Dashboard): Im Formular unter „Dashboard"
 eine **PIN** setzen – dann verlangt jede Steuer-Aktion die PIN über ein
