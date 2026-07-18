@@ -83,7 +83,7 @@ Diese Ebenen greifen ineinander; jede fängt Fehler der darüberliegenden ab.
 | **Tagesbudget (Minuten)** | 60 | Maximale Nachfüllzeit pro Kalendertag (Reset um Mitternacht). Schützt vor Endlos-Nachfüllen bei Leck oder klemmendem Ventil (Pegel steigt nicht → System würde sonst täglich weiterkippen). |
 | **Max. Messwert-Alter (Minuten)** | 120 | Nachgefüllt wird nur mit einem **frischen** Messwert. Ist der Zeitstempel älter (z. B. nach Symcon-Neustart, wenn nur die retained Nachricht kommt, oder wenn der Sensor länger nicht sendet), passiert nichts. Schützt davor, auf Basis veralteter Daten zu handeln. |
 | **Erfolgskontrolle: Mindest-Anteil** | 0,40 | Nach jeder Portion prüft das Modul bei der nächsten Messung, ob der Pegel um **mindestens diesen Anteil** des erwarteten Anstiegs gestiegen ist (0,40 = 40 %). Wenn nicht → Status **GESPERRT** + Warnung, bis manuell quittiert. Erkennt defektes Ventil, zugedrehten Zulauf, Sensor-Drift. Höher = strenger (mehr Fehlalarme), niedriger = toleranter. |
-| **Plausibel ab / bis (cm)** | 2,0 / 40,0 | Gültiges Messband. Werte außerhalb (Sensor blind, Fehlmessung, Gehäusereflexion) lösen keine Nachfüllung aus. An den realen Messbereich im Skimmer anpassen. |
+| **Plausibel ab / bis (cm)** | 2,0 / 12,0 | Gültiges Messband. Werte außerhalb (Sensor **ausgebaut**, blind, Fehlmessung, Gehäusereflexion) lösen keine Nachfüllung aus. **Bewusst eng halten** – etwa Ziel-Abstand + wenige cm: Ein auf dem Tisch liegender Sensor misst z. B. 15+ cm und würde sonst den Pool fluten. Auch im Dashboard (Einstellungen) verstellbar. |
 | **Dauer Kalibrierlauf (Minuten)** | 10 | Laufzeit des Kalibrier-Laufs (siehe unten). 10 min bei ~50 l/min ≈ 2,2 cm Anstieg – gut messbar, unkritisch. |
 
 ### Dashboard-Verknüpfungen (optional)
@@ -126,6 +126,7 @@ Aufruf, egal woher die Werte stammen.
 | **Akkuspannung** / **Akku** | `<base>/json`, `<base>/status` | LiPo-Spannung (V) und grober Ladezustand (%). |
 | **Messwert veraltet** | `<base>/json` (`stale`) | Alarm-Flag: Sensor konnte nicht gültig messen, letzter guter Wert wird weitergemeldet. |
 | **Zuletzt gesehen** | `<base>/json`, `<base>/status` | Zeitstempel der letzten Sensor-Meldung. |
+| **Nächster Kontakt / Nächste Messung** *(nur Dashboard)* | berechnet | Aus dem Messplan geschätzte nächste Termine („in 47 min · 00:09"). Färbt sich **orange**, wenn der Termin > 3 min überfällig ist – so fällt ein verstummter Sensor (leerer Akku, falscher Broker-Port, WLAN weg) sofort auf. |
 | **WLAN-Signal** | `<base>/status` | RSSI in dBm (ab −80 wird's grenzwertig). |
 | **Firmware** | `<base>/status` | Firmware-Version des Sensors. |
 | **Konfig-Bestätigung (Sensor)** | `<base>/config_ack` | Die Konfiguration, die der Sensor tatsächlich übernommen hat (Kontrolle, ob „senden" angekommen ist). |
@@ -306,8 +307,8 @@ verstellen (PIN-geschützt) – ohne Symcon-Konsole:
   Mess-Intervall, Config-Check-in, Kalibrier-Offset, Einzelmessungen,
   Sende-Retry-Basis. Änderungen gehen **sofort an den Sensor** (Briefkasten).
 - **Nachfüllen:** Automatik, Auffüll-Modus, Ziel-Abstand, Toleranz,
-  Max. pro Portion, Tagesbudget, Dauer Kalibrierlauf. Oben rechts steht
-  **„zuletzt kalibriert: … · x l/min"**.
+  Max. pro Portion, Tagesbudget, Dauer Kalibrierlauf, Plausibilitätsband.
+  Oben rechts steht **„zuletzt kalibriert: … · x l/min"**.
 
 Bedienung: **+/−-Tasten** oder **Mausrad über dem Wert** (Rad-Ticks werden
 gesammelt und ~0,6 s nach dem letzten Tick gebündelt gesendet – die Anzeige
@@ -359,6 +360,23 @@ Anzeige-Verhalten:
   "portal": 0, "ota": 0     // One-Shot-Flags (Sensor setzt zurück)
 }
 ```
+
+## Akku-Schutz (Firmware ≥ 2.0.8)
+
+Ein zu kurz eingestelltes Mess-Intervall leert den Akku sehr schnell
+(1-Minuten-Takt ≈ 1440 Aufwachvorgänge/Tag ≈ **4–6 Tage** Laufzeit) – und ein
+leerer Sensor ist weder per MQTT noch per OTA erreichbar. Deshalb:
+
+- **Firmware:** Ab **≤ 20 %** Akku schläft der Sensor mindestens **60 min**, ab
+  **≤ 8 %** mindestens **6 h** – unabhängig vom eingestellten Intervall. Die
+  Konfiguration bleibt unverändert und greift nach dem Laden wieder.
+- **Dashboard:** Die Einstellungen-Ansicht zeigt unter dem Messplan eine
+  **Reichweiten-Abschätzung** („Akku 71 % · Aufwachen alle 30 min ≈ Reichweite
+  … Tage") und warnt orange, wenn die Laufzeit unter 14 Tage fällt.
+
+**Empfehlung:** Kurze Intervalle (1–5 min) nur zum Beobachten/Einrichten
+verwenden, für den Dauerbetrieb **Täglich 21:00 + Check-in 240 min**. Geladen
+wird über die USB-Buchse des Lolin D32 (Onboard-Ladeschaltung).
 
 ## Hinweise
 

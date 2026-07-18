@@ -491,12 +491,13 @@ footer .spacer { flex: 1; }
   <section class="card glass" id="area-c1">
     <div class="card-title"><span class="tdot"></span> Messplan (Sensor)</div>
     <div class="set-list" id="setPlan"></div>
+      <div class="cfg-hint" id="battHint"></div>
     <div class="cfg-hint">Änderungen gehen sofort an den Sensor – er übernimmt sie beim nächsten Aufwachen (spätestens nach dem Config-Check-in).</div>
   </section>
   <section class="card glass" id="area-c2">
     <div class="card-title"><span class="tdot"></span> Nachfüllen <span class="spacer"></span><span class="meta" id="cfgCalibMeta"></span></div>
     <div class="set-list" id="setRefill"></div>
-    <div class="cfg-hint">Pooloberfläche, Start-Skript, Plausibilitätsband und PIN werden weiterhin in der Symcon-Konsole gesetzt (einmalige Grundkonfiguration).</div>
+    <div class="cfg-hint">Pooloberfläche, Start-Skript und PIN werden weiterhin in der Symcon-Konsole gesetzt (einmalige Grundkonfiguration).</div>
   </section>
 </main>
 
@@ -561,6 +562,18 @@ if (MOCK && HOOK.startsWith('__')) {   // huebsche Titel beim lokalen Testen
 }
 const num = (v,d=1) => (v==null||isNaN(v)) ? '–' : Number(v).toLocaleString('de-DE',{minimumFractionDigits:d>0?Math.min(d,1):0, maximumFractionDigits:d});
 const fmtClock = ts => new Date(ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+// Zukunfts-Termine: "in 42 min · 23:50" / bei Verzug "überfällig (23:50)"
+const isOverdue = ts => ts > 0 && (ts * 1000 - Date.now()) < -180000;   // >3 min drüber
+const fmtNext = ts => {
+  if (!ts) return '–';
+  const diff = Math.round(ts - Date.now() / 1000);
+  const clock = fmtClock(ts * 1000);
+  if (diff < -180) return 'überfällig (' + clock + ')';
+  if (diff <= 60) return 'gleich · ' + clock;
+  if (diff < 3600) return 'in ' + Math.round(diff / 60) + ' min · ' + clock;
+  if (diff < 86400) return 'in ' + (diff / 3600).toFixed(1).replace('.', ',') + ' h · ' + clock;
+  return 'morgen ' + clock;
+};
 const rel = ts => {
   if (!ts) return '–';
   const s = Math.floor(Date.now()/1000 - ts);
@@ -681,6 +694,8 @@ function render(d) {
   ks.push(kvRow('WLAN', d.rssi != null ? num(d.rssi,0) + ' <small>dBm</small>' : '–', d.rssi != null && d.rssi < -80 ? 'warn' : ''));
   ks.push(kvRow('Messwert', d.stale ? word('veraltet (stale)') : word('gültig'), d.stale ? 'warn' : 'good'));
   ks.push(kvRow('Zuletzt gesehen', word(rel(d.last_seen)), staleOld ? 'warn' : ''));
+  ks.push(kvRow('Nächster Kontakt', word(fmtNext(d.next_contact_ts)), isOverdue(d.next_contact_ts) ? 'warn' : ''));
+  ks.push(kvRow('Nächste Messung', word(fmtNext(d.next_meas_ts)), isOverdue(d.next_meas_ts) ? 'warn' : ''));
   ks.push(kvRow('Firmware', d.fw || '–'));
   $('kvSensor').innerHTML = ks.join('');
 }
@@ -880,7 +895,9 @@ const SET_REFILL = [
   { key:'ToleranceCm', type:'num', label:'Toleranz', val:d => d.tolerance_cm, step:0.1, min:0, max:20, unit:' cm', dec:1 },
   { key:'MaxRunMin', type:'num', label:'Max. pro Portion', val:d => d.max_run_min, step:1, min:1, max:240, unit:' min' },
   { key:'DailyBudgetMin', type:'num', label:'Tagesbudget', val:d => d.budget_min, step:5, min:1, max:600, unit:' min' },
-  { key:'CalibMinutes', type:'num', label:'Dauer Kalibrierlauf', val:d => d.calib_min, step:1, min:1, max:60, unit:' min' }
+  { key:'CalibMinutes', type:'num', label:'Dauer Kalibrierlauf', val:d => d.calib_min, step:1, min:1, max:60, unit:' min' },
+  { key:'PlausMinCm', type:'num', label:'Plausibel ab', sub:'Messband für Nachfüllung', val:d => d.plaus_min, step:0.5, min:0, max:50, unit:' cm', dec:1 },
+  { key:'PlausMaxCm', type:'num', label:'Plausibel bis', sub:'eng halten – Sensor ausgebaut = unplausibel', val:d => d.plaus_max, step:0.5, min:1, max:100, unit:' cm', dec:1 }
 ];
 
 function fmtSet(s, v) {
@@ -902,10 +919,28 @@ function renderSetList(el, list, d) {
     return `<div class="set-row"><div class="set-label">${s.label}${s.sub ? `<small>${s.sub}</small>` : ''}</div>${ctrl}</div>`;
   }).join('');
 }
+// Akku-Reichweite grob abschaetzen: pro Aufwachen ~0,2 mAh (WLAN + Messung)
+function battHint(d) {
+  if (!d || d.battery_pct == null) return '';
+  const every = (d.mode === 'interval') ? d.interval_min
+              : Math.min(d.checkin_min > 0 ? d.checkin_min : 1440, 1440);
+  if (!every || every <= 0) return '';
+  const wakesPerDay = 1440 / every;
+  const dailyMah = wakesPerDay * 0.2 + 3;          // + Ruhestrom/Selbstentladung
+  const days = Math.round((2500 * (d.battery_pct / 100)) / dailyMah);
+  let txt = `Akku ${d.battery_pct} % · Aufwachen alle ${every} min ≈ Reichweite ${days > 365 ? '>365' : days} Tage.`;
+  if (days < 14) txt = '⚠ ' + txt + ' Für Dauerbetrieb größeres Intervall wählen!';
+  if (d.battery_pct <= 20) txt += ' Akku-Schutz aktiv: Sensor schläft trotzdem mind. 60 min.';
+  return txt;
+}
+
 function renderSettings(d) {
   if (Object.keys(wheelPending).length) return;   // Mausrad-Eingabe laeuft - nicht ueberschreiben
   renderSetList($('setPlan'), SET_PLAN, d);
   renderSetList($('setRefill'), SET_REFILL, d);
+  const bh = battHint(d);
+  $('battHint').textContent = bh;
+  $('battHint').style.color = bh.startsWith('⚠') ? 'var(--amber)' : '';
   $('cfgCalibMeta').textContent = d?.calib_last
     ? 'zuletzt kalibriert: ' + new Date(d.calib_last * 1000).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
       + (d.flow_measured > 0 ? ' · ' + num(d.flow_measured) + ' l/min' : '')
@@ -982,7 +1017,10 @@ function MOCK_DATA() {
     chlorine: 0.11, probe_flow: 12.0, dose_ph: 120, dose_cl: 60, refill_valve: 0,
     valve_running: true, pin_required: true, pending: false,
     mode: 'daily', wake_hour: 21, wake_min: 0, interval_min: 30, checkin_min: 240,
-    offset_cm: 0, n_meas: 10, retry_min: 5, calib_min: 10, use_active_refill: true
+    offset_cm: 0, n_meas: 10, retry_min: 5, calib_min: 10, use_active_refill: true,
+    plaus_min: 2, plaus_max: 12,
+    next_contact_ts: Math.floor(Date.now()/1000) + 47*60,
+    next_meas_ts: Math.floor(Date.now()/1000) + 5.4*3600
   };
 }
 function MOCK_LOG() {

@@ -67,8 +67,10 @@ class PoolSkimmerSensor extends IPSModule
         $this->RegisterPropertyInteger('MaxRunMin', 30);         // max. Minuten pro Portion
         $this->RegisterPropertyInteger('DailyBudgetMin', 60);    // max. Minuten pro Tag
         $this->RegisterPropertyInteger('MaxAgeMin', 120);        // Messwert-Frische (retained-Schutz!)
-        $this->RegisterPropertyFloat('PlausMinCm', 2.0);         // plausibles Messband
-        $this->RegisterPropertyFloat('PlausMaxCm', 40.0);
+        $this->RegisterPropertyFloat('PlausMinCm', 2.0);         // plausibles Messband:
+        $this->RegisterPropertyFloat('PlausMaxCm', 12.0);        // eng halten! Werte ausserhalb
+                                                                 // (Sensor ausgebaut/blind) duerfen
+                                                                 // NIE eine Nachfuellung ausloesen
         $this->RegisterPropertyFloat('VerifyFactor', 0.4);       // mind. 40% des erwarteten Anstiegs
         $this->RegisterPropertyInteger('CalibMinutes', 10);      // Dauer Kalibrierlauf
 
@@ -525,6 +527,8 @@ class PoolSkimmerSensor extends IPSModule
             'MaxRunMin'      => ['i', 1, 240, false, 'Max. Minuten pro Portion', ' min'],
             'DailyBudgetMin' => ['i', 1, 600, false, 'Tagesbudget', ' min'],
             'CalibMinutes'   => ['i', 1, 60, false, 'Dauer Kalibrierlauf', ' min'],
+            'PlausMinCm'     => ['f', 0, 50, false, 'Plausibel ab', ' cm'],
+            'PlausMaxCm'     => ['f', 1, 100, false, 'Plausibel bis', ' cm'],
             'UseActiveRefill'=> ['b', 0, 0, false, 'Auffüll-Modus', '']
         ];
         if (!isset($map[$Key])) {
@@ -906,6 +910,32 @@ class PoolSkimmerSensor extends IPSModule
         $d['retry_min']         = $this->ReadPropertyInteger('RetryMin');
         $d['calib_min']         = $this->ReadPropertyInteger('CalibMinutes');
         $d['use_active_refill'] = $this->ReadPropertyBoolean('UseActiveRefill');
+        $d['plaus_min']         = $this->ReadPropertyFloat('PlausMinCm');
+        $d['plaus_max']         = $this->ReadPropertyFloat('PlausMaxCm');
+
+        // --- Naechste Termine schaetzen (gleiche Logik wie die Firmware) ---
+        // Naechste MESSUNG: daily = naechstes Vorkommen der Weckzeit;
+        // interval = letzte Messung (Zeitstempel der Fuellstand-Variable) + Intervall.
+        $now = time();
+        $activeIv = $this->ReadAttributeBoolean('ActiveRefill') ? 1 : 0;
+        if ($activeIv || $this->ReadPropertyString('Mode') === 'interval') {
+            $iv = $activeIv ? 1 : max(1, $this->ReadPropertyInteger('IntervalMin'));
+            $wl = @$this->GetIDForIdent('WaterLevel');
+            $lastMeas = ($wl !== false && $wl > 0) ? IPS_GetVariable($wl)['VariableUpdated'] : 0;
+            $nextMeas = $lastMeas > 0 ? $lastMeas + $iv * 60 : 0;
+        } else {
+            $t = mktime($this->ReadPropertyInteger('WakeHour'), $this->ReadPropertyInteger('WakeMin'), 0);
+            if ($t <= $now) {
+                $t += 86400;
+            }
+            $nextMeas = $t;
+        }
+        // Naechster KONTAKT: Check-in oder Messung, je nachdem was frueher kommt.
+        $lastSeen = (int)$this->GetValue('LastSeen');
+        $chk = $this->ReadPropertyInteger('CheckinMin');
+        $nextCheck = ($chk > 0 && $lastSeen > 0) ? $lastSeen + $chk * 60 : 0;
+        $d['next_meas_ts']    = $nextMeas;
+        $d['next_contact_ts'] = ($nextCheck > 0 && ($nextMeas <= 0 || $nextCheck < $nextMeas)) ? $nextCheck : $nextMeas;
         return $d;
     }
 
