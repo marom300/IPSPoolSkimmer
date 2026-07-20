@@ -932,29 +932,53 @@ class PoolSkimmerSensor extends IPSModule
         $d['plaus_min']         = $this->ReadPropertyFloat('PlausMinCm');
         $d['plaus_max']         = $this->ReadPropertyFloat('PlausMaxCm');
 
-        // --- Naechste Termine schaetzen (gleiche Logik wie die Firmware) ---
-        // Naechste MESSUNG: daily = naechstes Vorkommen der Weckzeit;
-        // interval = letzte Messung (Zeitstempel der Fuellstand-Variable) + Intervall.
+        // --- Naechste Termine schaetzen ---
+        // WICHTIG: Immer mit der vom SENSOR BESTAETIGTEN Konfiguration rechnen
+        // (config_ack), nicht mit den Modul-Properties! Nach einer Aenderung kennt
+        // der Sensor den neuen Plan erst ab dem naechsten Aufwachen - sonst waere
+        // die Anzeige sofort faelschlich "ueberfaellig".
         $now = time();
-        $activeIv = $this->ReadAttributeBoolean('ActiveRefill') ? 1 : 0;
-        if ($activeIv || $this->ReadPropertyString('Mode') === 'interval') {
-            $iv = $activeIv ? 1 : max(1, $this->ReadPropertyInteger('IntervalMin'));
+        $ack   = json_decode((string)$this->GetValue('ConfigAck'), true);
+        $sMode = (is_array($ack) && isset($ack['mode']))         ? (string)$ack['mode']        : $this->ReadPropertyString('Mode');
+        $sIv   = (is_array($ack) && isset($ack['interval_min'])) ? (int)$ack['interval_min']   : $this->ReadPropertyInteger('IntervalMin');
+        $sChk  = (is_array($ack) && isset($ack['checkin_min']))  ? (int)$ack['checkin_min']    : $this->ReadPropertyInteger('CheckinMin');
+        $sHour = (is_array($ack) && isset($ack['wake_hour']))    ? (int)$ack['wake_hour']      : $this->ReadPropertyInteger('WakeHour');
+        $sMin  = (is_array($ack) && isset($ack['wake_min']))     ? (int)$ack['wake_min']       : $this->ReadPropertyInteger('WakeMin');
+
+        if ($sMode === 'interval') {
+            $iv = max(1, $sIv);
             $wl = @$this->GetIDForIdent('WaterLevel');
             $lastMeas = ($wl !== false && $wl > 0) ? IPS_GetVariable($wl)['VariableUpdated'] : 0;
             $nextMeas = $lastMeas > 0 ? $lastMeas + $iv * 60 : 0;
+            $graceMeas = max(180, $iv * 30);          // halbes Intervall, mind. 3 min
         } else {
-            $t = mktime($this->ReadPropertyInteger('WakeHour'), $this->ReadPropertyInteger('WakeMin'), 0);
+            $t = mktime($sHour, $sMin, 0);
             if ($t <= $now) {
                 $t += 86400;
             }
-            $nextMeas = $t;
+            $nextMeas  = $t;
+            $graceMeas = 900;                         // Tagesmodus: 15 min Kulanz
         }
         // Naechster KONTAKT: Check-in oder Messung, je nachdem was frueher kommt.
-        $lastSeen = (int)$this->GetValue('LastSeen');
-        $chk = $this->ReadPropertyInteger('CheckinMin');
-        $nextCheck = ($chk > 0 && $lastSeen > 0) ? $lastSeen + $chk * 60 : 0;
-        $d['next_meas_ts']    = $nextMeas;
-        $d['next_contact_ts'] = ($nextCheck > 0 && ($nextMeas <= 0 || $nextCheck < $nextMeas)) ? $nextCheck : $nextMeas;
+        $lastSeen  = (int)$this->GetValue('LastSeen');
+        $nextCheck = ($sChk > 0 && $lastSeen > 0) ? $lastSeen + $sChk * 60 : 0;
+        $nextContact = ($nextCheck > 0 && ($nextMeas <= 0 || $nextCheck < $nextMeas)) ? $nextCheck : $nextMeas;
+
+        $d['next_meas_ts']         = $nextMeas;
+        $d['next_meas_overdue']    = $nextMeas > 0 && $now > $nextMeas + $graceMeas;
+        $d['next_contact_ts']      = $nextContact;
+        $d['next_contact_overdue'] = $nextContact > 0 && $now > $nextContact + max(180, $sChk * 30);
+
+        // Weicht die Modul-Konfig von der bestaetigten ab, wartet der Sensor noch
+        // auf die Uebernahme -> im Dashboard sichtbar machen.
+        $wantActive = $this->ReadAttributeBoolean('ActiveRefill');
+        $d['cfg_pending'] = is_array($ack) && (
+               $sMode !== ($wantActive ? 'interval' : $this->ReadPropertyString('Mode'))
+            || $sIv   !== ($wantActive ? 1 : $this->ReadPropertyInteger('IntervalMin'))
+            || $sChk  !== $this->ReadPropertyInteger('CheckinMin')
+            || $sHour !== $this->ReadPropertyInteger('WakeHour')
+            || $sMin  !== $this->ReadPropertyInteger('WakeMin')
+        );
         return $d;
     }
 

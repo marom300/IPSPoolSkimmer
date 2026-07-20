@@ -563,13 +563,14 @@ if (MOCK && HOOK.startsWith('__')) {   // huebsche Titel beim lokalen Testen
 }
 const num = (v,d=1) => (v==null||isNaN(v)) ? '–' : Number(v).toLocaleString('de-DE',{minimumFractionDigits:d>0?Math.min(d,1):0, maximumFractionDigits:d});
 const fmtClock = ts => new Date(ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-// Zukunfts-Termine: "in 42 min · 23:50" / bei Verzug "überfällig (23:50)"
-const isOverdue = ts => ts > 0 && (ts * 1000 - Date.now()) < -180000;   // >3 min drüber
-const fmtNext = ts => {
+// Zukunfts-Termine: "in 42 min · 23:50" / bei Verzug "überfällig (23:50)".
+// Ob etwas ueberfaellig IST, entscheidet das Modul (kennt die vom Sensor
+// bestaetigte Konfig + passende Kulanzzeit) - hier nur die Darstellung.
+const fmtNext = (ts, overdue) => {
   if (!ts) return '–';
   const diff = Math.round(ts - Date.now() / 1000);
   const clock = fmtClock(ts * 1000);
-  if (diff < -180) return 'überfällig (' + clock + ')';
+  if (overdue) return 'überfällig (' + clock + ')';
   if (diff <= 60) return 'gleich · ' + clock;
   if (diff < 3600) return 'in ' + Math.round(diff / 60) + ' min · ' + clock;
   if (diff < 86400) return 'in ' + (diff / 3600).toFixed(1).replace('.', ',') + ' h · ' + clock;
@@ -695,8 +696,11 @@ function render(d) {
   ks.push(kvRow('WLAN', d.rssi != null ? num(d.rssi,0) + ' <small>dBm</small>' : '–', d.rssi != null && d.rssi < -80 ? 'warn' : ''));
   ks.push(kvRow('Messwert', d.stale ? word('veraltet (stale)') : word('gültig'), d.stale ? 'warn' : 'good'));
   ks.push(kvRow('Zuletzt gesehen', word(rel(d.last_seen)), staleOld ? 'warn' : ''));
-  ks.push(kvRow('Nächster Kontakt', word(fmtNext(d.next_contact_ts)), isOverdue(d.next_contact_ts) ? 'warn' : ''));
-  ks.push(kvRow('Nächste Messung', word(fmtNext(d.next_meas_ts)), isOverdue(d.next_meas_ts) ? 'warn' : ''));
+  ks.push(kvRow('Nächster Kontakt', word(fmtNext(d.next_contact_ts, d.next_contact_overdue)), d.next_contact_overdue ? 'warn' : ''));
+  ks.push(kvRow('Nächste Messung', word(fmtNext(d.next_meas_ts, d.next_meas_overdue)), d.next_meas_overdue ? 'warn' : ''));
+  if (d.cfg_pending) {
+    ks.push(kvRow('Konfiguration', word('wird beim nächsten Aufwachen übernommen'), 'accent'));
+  }
   ks.push(kvRow('Firmware', d.fw || '–'));
   $('kvSensor').innerHTML = ks.join('');
 }
@@ -945,7 +949,7 @@ function battHint(d) {
 }
 
 function renderSettings(d) {
-  if (Object.keys(wheelPending).length) return;   // Mausrad-Eingabe laeuft - nicht ueberschreiben
+  if (Object.keys(setPending).length) return;   // Eingabe laeuft gerade - nicht ueberschreiben
   renderSetList($('setPlan'), SET_PLAN, d);
   renderSetList($('setRefill'), SET_REFILL, d);
   const bh = battHint(d);
@@ -956,21 +960,35 @@ function renderSettings(d) {
       + (d.flow_measured > 0 ? ' · ' + num(d.flow_measured) + ' l/min' : '')
     : 'noch nie kalibriert';
 }
+// Stepper-Aenderungen sammeln und gebuendelt senden (Klicks WIE Mausrad):
+// sonst erzeugt jeder einzelne Tick einen Request UND einen Protokolleintrag.
+const setPending = {};
+let setTimer = null;
+const clampVal   = (s, v) => Math.min(s.max, Math.max(s.min, s.dec ? Math.round(v * 10) / 10 : Math.round(v)));
+const currentVal = s => setPending[s.key] ?? Number(s.val(lastData)) ?? 0;
+function queueSet(s, value, stepperEl) {
+  setPending[s.key] = value;
+  if (stepperEl) stepperEl.querySelector('.sval').textContent = fmtSet(s, value);
+  clearTimeout(setTimer);
+  setTimer = setTimeout(async () => {
+    const jobs = Object.entries(setPending);
+    Object.keys(setPending).forEach(k => delete setPending[k]);
+    for (const [k, val] of jobs) await sendCfg(k, val);
+  }, 700);
+}
+
 async function onSetClick(e) {
   const b = e.target.closest('button'); if (!b || !lastData) return;
   const key = b.dataset.key; if (!key) return;
-  if (b.dataset.set !== undefined) {                       // Segment-Auswahl
+  if (b.dataset.set !== undefined) {                       // Segment-Auswahl (sofort)
     const v = b.dataset.set;
     if (key === 'AutoRefill') { await sendCmd('auto', v === '1'); }
     else { await sendCfg(key, key === 'Mode' ? v : (v === '1')); }
-  } else {                                                  // Stepper
+    renderSettings(lastData);
+  } else {                                                  // Stepper (gebuendelt)
     const s = [...SET_PLAN, ...SET_REFILL].find(x => x.key === key); if (!s) return;
-    const cur = Number(s.val(lastData)) || 0;
-    let v = cur + Number(b.dataset.step);
-    v = Math.min(s.max, Math.max(s.min, s.dec ? Math.round(v * 10) / 10 : Math.round(v)));
-    await sendCfg(key, v);
+    queueSet(s, clampVal(s, currentVal(s) + Number(b.dataset.step)), b.closest('.stepper'));
   }
-  renderSettings(lastData);
 }
 async function sendCfg(key, value) {
   await sendCmd('cfg', value, key);
@@ -981,24 +999,12 @@ $('setRefill').addEventListener('click', onSetClick);
 // ── Mausrad über einem Stepper ändert den Wert ──
 // Ticks werden gesammelt (sofortiges Anzeige-Feedback) und erst nach kurzer
 // Pause gebündelt gesendet - sonst je Rad-Tick ein Request + PIN-Abfrage.
-const wheelPending = {};
-let wheelTimer = null;
 function onSetWheel(e) {
   const st = e.target.closest('.stepper'); if (!st || !lastData) return;
   const btn = st.querySelector('button[data-key]'); if (!btn) return;
   const s = [...SET_PLAN, ...SET_REFILL].find(x => x.key === btn.dataset.key); if (!s) return;
   e.preventDefault();
-  const base = wheelPending[s.key] ?? Number(s.val(lastData)) ?? 0;
-  let v = base + (e.deltaY < 0 ? s.step : -s.step);
-  v = Math.min(s.max, Math.max(s.min, s.dec ? Math.round(v * 10) / 10 : Math.round(v)));
-  wheelPending[s.key] = v;
-  st.querySelector('.sval').textContent = fmtSet(s, v);
-  clearTimeout(wheelTimer);
-  wheelTimer = setTimeout(async () => {
-    const jobs = Object.entries(wheelPending);
-    Object.keys(wheelPending).forEach(k => delete wheelPending[k]);
-    for (const [k, val] of jobs) await sendCfg(k, val);
-  }, 600);
+  queueSet(s, clampVal(s, currentVal(s) + (e.deltaY < 0 ? s.step : -s.step)), st);
 }
 $('setPlan').addEventListener('wheel', onSetWheel, { passive: false });
 $('setRefill').addEventListener('wheel', onSetWheel, { passive: false });
@@ -1048,8 +1054,9 @@ function MOCK_DATA() {
     mode: 'daily', wake_hour: 21, wake_min: 0, interval_min: 30, checkin_min: 240,
     offset_cm: 0, n_meas: 10, retry_min: 5, calib_min: 10, use_active_refill: true,
     plaus_min: 2, plaus_max: 12,
-    next_contact_ts: Math.floor(Date.now()/1000) + 47*60,
-    next_meas_ts: Math.floor(Date.now()/1000) + 5.4*3600
+    next_contact_ts: Math.floor(Date.now()/1000) + 47*60, next_contact_overdue: false,
+    next_meas_ts: Math.floor(Date.now()/1000) + 5.4*3600, next_meas_overdue: false,
+    cfg_pending: true
   };
 }
 function MOCK_LOG() {

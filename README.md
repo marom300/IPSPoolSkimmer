@@ -126,7 +126,8 @@ Aufruf, egal woher die Werte stammen.
 | **Akkuspannung** / **Akku** | `<base>/json`, `<base>/status` | LiPo-Spannung (V) und grober Ladezustand (%). |
 | **Messwert veraltet** | `<base>/json` (`stale`) | Alarm-Flag: Sensor konnte nicht gültig messen, letzter guter Wert wird weitergemeldet. |
 | **Zuletzt gesehen** | `<base>/json`, `<base>/status` | Zeitstempel der letzten Sensor-Meldung. |
-| **Nächster Kontakt / Nächste Messung** *(nur Dashboard)* | berechnet | Aus dem Messplan geschätzte nächste Termine („in 47 min · 00:09"). Färbt sich **orange**, wenn der Termin > 3 min überfällig ist – so fällt ein verstummter Sensor (leerer Akku, falscher Broker-Port, WLAN weg) sofort auf. |
+| **Nächster Kontakt / Nächste Messung** *(nur Dashboard)* | berechnet | Nächste Termine („in 47 min · 00:09"), berechnet aus der **vom Sensor bestätigten** Konfiguration (`config_ack`) – nicht aus den Modul-Properties, denn eine frisch geänderte Einstellung kennt der Sensor erst nach dem nächsten Aufwachen. Färbt sich **orange**, wenn der Termin samt Kulanz (halbes Intervall, mind. 3 min; im Tagesmodus 15 min) überschritten ist – so fällt ein verstummter Sensor sofort auf. |
+| **Konfiguration** *(nur Dashboard, nur bei Bedarf)* | berechnet | Erscheint, solange eine geänderte Einstellung noch nicht vom Sensor übernommen wurde („wird beim nächsten Aufwachen übernommen"). |
 | **WLAN-Signal** | `<base>/status` | RSSI in dBm (ab −80 wird's grenzwertig). |
 | **Firmware** | `<base>/status` | Firmware-Version des Sensors. |
 | **Konfig-Bestätigung (Sensor)** | `<base>/config_ack` | Die Konfiguration, die der Sensor tatsächlich übernommen hat (Kontrolle, ob „senden" angekommen ist). |
