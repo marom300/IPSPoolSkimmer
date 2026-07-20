@@ -215,8 +215,9 @@ main { grid-template-areas: "s" "p" "t"; }
 /* ── Protokoll-Seite ── */
 /* volle Breite (ID schlaegt die 2-Spalten-Regel der Uebersicht) */
 #view-log { grid-template-columns: minmax(0,1fr); grid-template-areas: "l"; grid-template-rows: minmax(0,1fr); }
-#area-l { grid-area: l; }
+#area-l { grid-area: l; overflow: hidden; }   /* Karte clippt -> .log-list ist der Scroller */
 .log-list {
+  overscroll-behavior: contain;               /* Rad bleibt in der Liste haengen */
   flex:1 1 auto; min-height:0; overflow-y:auto;
   font-family: var(--mono); font-size: 12px; line-height: 1.85; color: var(--text-dim);
 }
@@ -854,9 +855,18 @@ async function tickLog() {
   try {
     const log = await fetchJson('log');
     if (!Array.isArray(log)) return;
-    $('logList').innerHTML = log.map(e =>
-      `<div class="${/GESPERRT|GESTOPPT|⚠|FEHL/i.test(e.msg) ? 'warn' : ''}">${e.msg}</div>`
-    ).join('') || '<div>Noch keine Vorgänge protokolliert.</div>';
+    const el = $('logList');
+    // Nur neu rendern, wenn sich wirklich etwas geaendert hat - sonst springt
+    // die Scrollposition beim Minuten-Refresh immer wieder nach oben.
+    const sig = log.length + '|' + (log[0]?.ts ?? '') + '|' + (log[0]?.msg ?? '');
+    if (el.dataset.sig !== sig) {
+      const st = el.scrollTop;
+      el.innerHTML = log.map(e =>
+        `<div class="${/GESPERRT|GESTOPPT|⚠|FEHL/i.test(e.msg) ? 'warn' : ''}">${e.msg}</div>`
+      ).join('') || '<div>Noch keine Vorgänge protokolliert.</div>';
+      el.scrollTop = st;
+      el.dataset.sig = sig;
+    }
     $('logMeta').textContent = log.length ? log.length + ' Einträge' : '';
   } catch (e) { /* offline */ }
 }
@@ -1029,7 +1039,8 @@ function MOCK_LOG() {
     { ts: 0, msg: '17.07. 10:47 Kalibrierlauf: +1,5 cm in 10 min = 34,1 l/min – als Zuflussrate übernommen.' },
     { ts: 0, msg: '16.07. 23:32 Sperre quittiert.' },
     { ts: 0, msg: '16.07. 21:00 ⚠ ERFOLGSKONTROLLE FEHLGESCHLAGEN: nur +0,1 cm statt ~2,2 cm. Nachfüllen GESPERRT.' }
-  ];
+  ].concat(Array.from({ length: 60 }, (_, i) =>
+    ({ ts: 0, msg: `1${5 - Math.floor(i / 20)}.07. ${String(20 - (i % 20)).padStart(2, '0')}:00 Testeintrag #${i + 1} – Kontrolle OK: +2,1 cm (erwartet ~2,2 cm).` })));
 }
 function MOCK_HIST() {
   const now = Math.floor(Date.now()/1000), lvl = [], bat = [];
