@@ -312,7 +312,10 @@ verstellen (PIN-geschützt) – ohne Symcon-Konsole:
 
 Bedienung: **+/−-Tasten** oder **Mausrad über dem Wert** (Rad-Ticks werden
 gesammelt und ~0,6 s nach dem letzten Tick gebündelt gesendet – die Anzeige
-folgt sofort). Ein **„Konfiguration an Sensor senden" ist nicht nötig**: Jede
+folgt sofort). Das Scrollen der Listen (Protokoll, Einstellungen) erledigt das
+Dashboard selbst per eigenem Wheel-Handler – in eingebetteten Ansichten
+(IPSView-WebView, iframe im Violet-Portal) kommt das native Scrolling
+verschachtelter Container sonst teilweise nicht an. Ein **„Konfiguration an Sensor senden" ist nicht nötig**: Jede
 Messplan-Änderung landet automatisch im Briefkasten und wird beim nächsten
 Aufwachen übernommen (spätestens nach `Config-Check-in` Minuten).
 

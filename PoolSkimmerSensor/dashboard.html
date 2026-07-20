@@ -1002,6 +1002,25 @@ function onSetWheel(e) {
 }
 $('setPlan').addEventListener('wheel', onSetWheel, { passive: false });
 $('setRefill').addEventListener('wheel', onSetWheel, { passive: false });
+
+// ── Mausrad-Scrollen robust machen ──
+// In eingebetteten Ansichten (IPSView-WebView, iframe im Violet-Portal) kommt das
+// native Wheel-Scrolling verschachtelter Container teils nicht an - der Scrollbalken
+// funktioniert, das Rad nicht. Deshalb hier selbst scrollen.
+function enableWheelScroll(el) {
+  el.addEventListener('wheel', e => {
+    if (e.ctrlKey) return;                        // Browser-Zoom nicht kapern
+    if (e.target.closest('.stepper')) return;     // Stepper hat seinen eigenen Handler
+    if (el.scrollHeight <= el.clientHeight) return;
+    const unit = e.deltaMode === 1 ? 18 : (e.deltaMode === 2 ? el.clientHeight : 1);
+    const before = el.scrollTop;
+    el.scrollTop = before + e.deltaY * unit;
+    if (el.scrollTop !== before) e.preventDefault();
+  }, { passive: false });
+}
+enableWheelScroll($('logList'));
+enableWheelScroll($('setPlan'));
+enableWheelScroll($('setRefill'));
 function toast(msg, err=false) {
   const t = $('toast');
   t.textContent = msg; t.classList.toggle('err', err); t.classList.add('show');
