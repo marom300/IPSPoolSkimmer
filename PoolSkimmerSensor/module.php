@@ -321,7 +321,12 @@ class PoolSkimmerSensor extends IPSModule
         $pendingUntil = $this->ReadAttributeInteger('PendingUntil');
         if ($pendingUntil > 0) {
             if ($now < $pendingUntil) {
-                $this->SendDebug('REFILL', 'Portion laeuft noch - keine Aktion', 0);
+                // Waehrend einer laufenden Portion jede Messung protokollieren,
+                // damit der Fuellverlauf spaeter rekonstruierbar ist.
+                $lvl = (float)($j['level_cm'] ?? 0);
+                $this->info(sprintf('… Füllung läuft: %.1f cm (Ziel %.1f cm, noch %.1f cm)',
+                    $lvl, $this->ReadPropertyFloat('TargetLevelCm'),
+                    max(0.0, $lvl - $this->ReadPropertyFloat('TargetLevelCm'))));
                 return;                                   // Wasser laeuft evtl. noch
             }
             $this->finishPending();                       // Kontrolle durchfuehren
@@ -331,6 +336,9 @@ class PoolSkimmerSensor extends IPSModule
             if ($this->GetValue('RefillState') !== self::ST_LOCKED) {
                 $this->SetValue('RefillState', self::ST_OFF);
             }
+            // Nach einer manuellen Portion/Kalibrierung wieder normal takten,
+            // sonst bliebe der Sensor im Minutentakt (Akku!).
+            $this->exitActiveRefill('Automatik aus');
             return;
         }
         if ($this->GetValue('RefillState') === self::ST_LOCKED) {
@@ -383,11 +391,6 @@ class PoolSkimmerSensor extends IPSModule
         }
         $runMin = min($runMin, $rest);
 
-        // --- Auffüll-Modus: reicht eine Portion nicht, den Sensor eng takten ---
-        if ($needMin > $runMin) {
-            $this->enterActiveRefill($missingCm);
-        }
-
         $this->startPortion($runMin, $level, false);
     }
 
@@ -411,8 +414,23 @@ class PoolSkimmerSensor extends IPSModule
         $this->SetValue('TodayRefillMin', $this->GetValue('TodayRefillMin') + $runMin);
         $this->SetValue('LastRefill', time());
         $this->SetValue('RefillState', self::ST_RUNNING);
-        $this->info(sprintf('%s: %d min gestartet (erwarteter Anstieg %.1f cm).',
-            $calib ? 'Kalibrierlauf' : 'Nachfüllung', $runMin, $expRise));
+
+        if ($calib) {
+            $this->info(sprintf('Kalibrierlauf: %d min gestartet (Start-Abstand %.1f cm).',
+                $runMin, $preLevelCm));
+        } else {
+            $this->info(sprintf(
+                'Nachfüllung: %d min gestartet – gemessen %.1f cm, Ziel %.1f cm, fehlt %.1f cm (%.0f l), erwarteter Anstieg %.1f cm.',
+                $runMin, $preLevelCm, $this->ReadPropertyFloat('TargetLevelCm'),
+                max(0.0, $preLevelCm - $this->ReadPropertyFloat('TargetLevelCm')),
+                max(0.0, $preLevelCm - $this->ReadPropertyFloat('TargetLevelCm')) * $this->litersPerCm(),
+                $expRise));
+        }
+
+        // Waehrend JEDER laufenden Portion eng takten: Fortschritt live sichtbar,
+        // Erfolgskontrolle kommt direkt nach der Beruhigungsphase (statt im
+        // Tagesmodus erst 24 h spaeter).
+        $this->enterActiveRefill($preLevelCm - $this->ReadPropertyFloat('TargetLevelCm'));
 
         IPS_RunScriptEx($scriptID, ['DURATION' => $runMin, 'SENDER' => 'PoolSkimmer']);
     }
@@ -447,6 +465,7 @@ class PoolSkimmerSensor extends IPSModule
                     $rise));
             }
             $this->SetValue('RefillState', self::ST_READY);
+            $this->exitActiveRefill('Kalibrierlauf beendet');
             return;
         }
 
@@ -643,7 +662,7 @@ class PoolSkimmerSensor extends IPSModule
         $this->WriteAttributeBoolean('ActiveRefill', true);
         $this->SetValue('ActiveRefillMode', true);
         $this->publishConfig(0, 0);                   // enges Intervall an den Sensor
-        $this->info(sprintf('Großer Rückstand (%.1f cm) – Auffüll-Modus: Sensor misst eng getaktet bis zum Zielpegel.', $missingCm));
+        $this->info('Auffüll-Modus: Sensor misst ab jetzt im Minutentakt (bis Zielpegel erreicht).');
     }
 
     private function exitActiveRefill(string $grund): void

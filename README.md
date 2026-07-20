@@ -168,15 +168,17 @@ Mehrlagige Absicherung (von Hardware nach Software):
 
 ### Auffüll-Modus (automatisch)
 
-Reicht **eine** Portion nicht (z. B. 5 cm+ nach einem starken Badetag),
+Sobald **irgendeine** Portion startet (automatisch, manuell oder Kalibrierlauf),
 schaltet das Modul den Sensor **selbst** vorübergehend auf ein enges
 Mess-Intervall (**Minutentakt**). So ist der Pegel-Fortschritt auch
 **während** der laufenden Portion live sichtbar, und nach Portionsende +
 5 min Beruhigung startet die Folgeportion zügig – bis der Zielpegel erreicht
 ist, statt tagelang auf den nächsten Tagestermin zu warten. Danach stellt er
-automatisch auf den normalen Messplan zurück (Akku schonen). Die
-Nachfüll-Entscheidung selbst wartet immer Portionsende + 5 min ab
-(Erfolgskontrolle); die Zwischenmessungen dienen Anzeige und Archiv.
+automatisch auf den normalen Messplan zurück (Akku schonen) – auch bei
+abgeschalteter Automatik, nach einer Sperre, bei erschöpftem Tagesbudget und
+nach dem Kalibrierlauf. Die Nachfüll-*Entscheidung* wartet immer Portionsende +
+5 min ab (Erfolgskontrolle); die Zwischenmessungen dienen Anzeige, Archiv und
+Protokoll.
 
 Damit die Umstellung **sofort** greift und nicht erst am nächsten Tag, holt der
 Sensor direkt nach dem Senden der Messung nochmal die Config ab (Firmware
@@ -324,6 +326,13 @@ Symcon-Konsole bleiben nur die einmaligen Grundeinstellungen
 (Pooloberfläche, Start-Skript, Plausibilitätsband, PIN, Verknüpfungen).
 
 ### Vorgangs-Protokoll
+
+**Einzelne Messungen werden bewusst NICHT protokolliert** – die liegen als
+Zeitreihe im Archiv der Variable „Füllstand" (Trend im Dashboard). Ausnahme:
+Während einer **laufenden Portion** wird jede Messung mitgeschrieben
+(„… Füllung läuft: 4,8 cm (Ziel 3,6 cm, noch 1,2 cm)"), damit ein Füllvorgang
+lückenlos rekonstruierbar ist. Die Start-Meldung nennt außerdem den
+auslösenden Messwert, das Ziel und die Fehlmenge.
 
 Jeder Vorgang (Portion gestartet/gestoppt, Kalibrierlauf + Ergebnis,
 Erfolgskontrolle, Sperre/Quittierung, Budget erschöpft, Auffüll-Modus
