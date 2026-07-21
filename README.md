@@ -128,7 +128,7 @@ Aufruf, egal woher die Werte stammen.
 | **Zuletzt gesehen** | `<base>/json`, `<base>/status` | Zeitstempel der letzten Sensor-Meldung – **jeder** Kontakt, also auch ein reiner Check-in. |
 | **Letzte Messung** *(nur Dashboard)* | berechnet | Zeitstempel der letzten **echten Messung**. Bewusst getrennt von „Zuletzt gesehen": Ein **Check-in** meldet sich zwar (und frischt „Zuletzt gesehen" auf), schaltet den ToF-Sensor aber gar nicht ein und **misst nicht**. Ohne diese Zeile sieht ein frischer Kontakt wie ein frischer Messwert aus. Quelle ist der Änderungszeitstempel der Variable „Füllstand", den ein Check-in nicht anfasst. **„Zuletzt gesehen" wird nur eingeblendet, wenn es sich von „Letzte Messung" unterscheidet** – sonst wären es zwei identische Zeilen. Taucht die Zeile also auf, hat sich der Sensor gemeldet **ohne zu messen**. |
 | **Nächster Kontakt / Nächste Messung** *(nur Dashboard)* | berechnet | Nächste Termine („in 47 min · 00:09"), berechnet aus der **vom Sensor bestätigten** Konfiguration (`config_ack`) – nicht aus den Modul-Properties, denn eine frisch geänderte Einstellung kennt der Sensor erst nach dem nächsten Aufwachen. Färbt sich **orange**, wenn der Termin samt Kulanz (halbes Intervall, mind. 3 min; im Tagesmodus 15 min) überschritten ist – so fällt ein verstummter Sensor sofort auf. |
-| **Konfiguration** *(nur Dashboard, nur bei Bedarf)* | berechnet | Erscheint, solange eine geänderte Einstellung noch nicht vom Sensor übernommen wurde („wird beim nächsten Aufwachen übernommen"). |
+| **Konfiguration** *(nur Dashboard, nur bei Bedarf)* | berechnet | Erscheint, solange eine geänderte Einstellung noch nicht vom Sensor übernommen wurde – **mit konkretem Termin** („wird übernommen in 47 min · 12:09"). Der Sensor liest den Config-„Briefkasten" bei **jedem** Aufwachen, die Übernahme fällt also exakt auf den **nächsten Kontakt** (Check-in oder Messung, was früher kommt). Ist der überfällig, steht hier „überfällig (12:09)" – dann hängt der Sensor. |
 | **WLAN-Signal** | `<base>/status` | RSSI in dBm (ab −80 wird's grenzwertig). |
 | **Firmware** | `<base>/status` | Firmware-Version des Sensors. |
 | **Konfig-Bestätigung (Sensor)** | `<base>/config_ack` | Die Konfiguration, die der Sensor tatsächlich übernommen hat (Kontrolle, ob „senden" angekommen ist). |
@@ -257,7 +257,7 @@ Oben rechts schaltest du zwischen drei Ansichten um – direkt verlinkbar über
 |---|---|
 | **Übersicht** | Anlagenschema, Nachfüll-Karte mit Steuerung, Sensor-Karte, Trends |
 | **Protokoll** | vollständiges Vorgangs-Protokoll, scrollbar (Warnungen orange) |
-| **Einstellungen** | alle laufenden Parameter direkt verstellbar + „zuletzt kalibriert" |
+| **Einstellungen** | alle laufenden Parameter direkt verstellbar + „zuletzt kalibriert" + **Übernahme-Termin** (s. u.) |
 
 **Übersicht** enthält:
 
@@ -281,6 +281,13 @@ Oben rechts schaltest du zwischen drei Ansichten um – direkt verlinkbar über
 > als Beleg nehmen, sondern `scrollHeight > clientHeight` von `#area-t` messen.
 > Die Sparklines schrumpfen inzwischen zusätzlich (bis 9 px), statt zu verschwinden.
 - **Trends:** Sparklines der letzten 48 h (Füllstand, Akku) aus dem Archiv.
+
+**Einstellungen** zeigt unter dem Messplan, **wann eine Änderung beim Sensor
+ankommt**: Solange etwas offen ist, steht dort orange „⏳ Änderung wartet – der
+Sensor übernimmt sie beim nächsten Kontakt: in 47 min · 12:09."; ist nichts
+offen, „Sensor ist auf dem aktuellen Stand …". Das ist wichtig, weil der Sensor
+im Deep-Sleep **taub** ist – eine Änderung liegt bis zu einem vollen
+Check-in-Intervall im retained Config-Topic, bevor er sie überhaupt liest.
 
 **Aufruf:** `http://<Symcon-IP>:3777/hook/poolskimmer<InstanzID>` – direkt im
 Browser oder als URL im IPSView-WebView. Der Hook wird beim Übernehmen der

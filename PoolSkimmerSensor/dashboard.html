@@ -501,7 +501,7 @@ footer .spacer { flex: 1; }
     <div class="card-title"><span class="tdot"></span> Messplan (Sensor)</div>
     <div class="set-list" id="setPlan"></div>
       <div class="cfg-hint" id="battHint"></div>
-    <div class="cfg-hint">Änderungen gehen sofort an den Sensor – er übernimmt sie beim nächsten Aufwachen (spätestens nach dem Config-Check-in).</div>
+    <div class="cfg-hint" id="cfgApplyHint">Änderungen gehen sofort an den Sensor – er übernimmt sie beim nächsten Aufwachen (spätestens nach dem Config-Check-in).</div>
   </section>
   <section class="card glass" id="area-c2">
     <div class="card-title"><span class="tdot"></span> Nachfüllen <span class="spacer"></span><span class="meta" id="cfgCalibMeta"></span></div>
@@ -717,7 +717,9 @@ function render(d) {
   if (sNextC !== sNextM) ks.push(kvRow('Nächster Kontakt', word(sNextC), d.next_contact_overdue ? 'warn' : ''));
   ks.push(kvRow('Nächste Messung', word(sNextM), d.next_meas_overdue ? 'warn' : ''));
   if (d.cfg_pending) {
-    ks.push(kvRow('Konfiguration', word('wird beim nächsten Aufwachen übernommen'), 'accent'));
+    // Uebernahme faellt auf den naechsten Kontakt (Config wird bei JEDEM Aufwachen
+    // geholt) -> konkreten Termin nennen statt nur "beim naechsten Aufwachen".
+    ks.push(kvRow('Konfiguration', word(d.next_contact_ts ? 'wird übernommen ' + sNextC : 'wird beim nächsten Aufwachen übernommen'), 'accent'));
   }
   ks.push(kvRow('Firmware', d.fw || '–'));
   $('kvSensor').innerHTML = ks.join('');
@@ -973,6 +975,22 @@ function renderSettings(d) {
   const bh = battHint(d);
   $('battHint').textContent = bh;
   $('battHint').style.color = bh.startsWith('⚠') ? 'var(--amber)' : '';
+  // Konkreten Uebernahme-Termin statt nur "beim naechsten Aufwachen": Der Sensor
+  // liest den Config-Briefkasten bei JEDEM Aufwachen, die Uebernahme faellt also
+  // exakt auf den naechsten Kontakt (Check-in ODER Messung, was frueher kommt).
+  const ch = $('cfgApplyHint');
+  const when = d?.next_contact_ts ? fmtNext(d.next_contact_ts, d.next_contact_overdue) : null;
+  if (d?.cfg_pending) {
+    ch.textContent = when
+      ? '⏳ Änderung wartet – der Sensor übernimmt sie beim nächsten Kontakt: ' + when + '.'
+      : '⏳ Änderung wartet – der Sensor übernimmt sie beim nächsten Aufwachen.';
+    ch.style.color = 'var(--amber)';
+  } else {
+    ch.textContent = when
+      ? 'Sensor ist auf dem aktuellen Stand. Änderungen gehen sofort raus und werden beim nächsten Kontakt übernommen: ' + when + '.'
+      : 'Änderungen gehen sofort an den Sensor – er übernimmt sie beim nächsten Aufwachen (spätestens nach dem Config-Check-in).';
+    ch.style.color = '';
+  }
   $('cfgCalibMeta').textContent = d?.calib_last
     ? 'zuletzt kalibriert: ' + new Date(d.calib_last * 1000).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
       + (d.flow_measured > 0 ? ' · ' + num(d.flow_measured) + ' l/min' : '')
