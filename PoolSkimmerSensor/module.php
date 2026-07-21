@@ -945,10 +945,14 @@ class PoolSkimmerSensor extends IPSModule
         $sHour = (is_array($ack) && isset($ack['wake_hour']))    ? (int)$ack['wake_hour']      : $this->ReadPropertyInteger('WakeHour');
         $sMin  = (is_array($ack) && isset($ack['wake_min']))     ? (int)$ack['wake_min']       : $this->ReadPropertyInteger('WakeMin');
 
+        // Zeitpunkt der letzten ECHTEN Messung: Ein Check-in schreibt den Fuellstand
+        // NICHT mit - der Zeitstempel der Fuellstand-Variable ist damit der ehrliche
+        // "zuletzt gemessen"-Stempel (im Gegensatz zu LastSeen = letzter Kontakt).
+        $wl       = @$this->GetIDForIdent('WaterLevel');
+        $lastMeas = ($wl !== false && $wl > 0) ? (int)IPS_GetVariable($wl)['VariableUpdated'] : 0;
+
         if ($sMode === 'interval') {
             $iv = max(1, $sIv);
-            $wl = @$this->GetIDForIdent('WaterLevel');
-            $lastMeas = ($wl !== false && $wl > 0) ? IPS_GetVariable($wl)['VariableUpdated'] : 0;
             $nextMeas = $lastMeas > 0 ? $lastMeas + $iv * 60 : 0;
             $graceMeas = max(180, $iv * 30);          // halbes Intervall, mind. 3 min
         } else {
@@ -964,6 +968,7 @@ class PoolSkimmerSensor extends IPSModule
         $nextCheck = ($sChk > 0 && $lastSeen > 0) ? $lastSeen + $sChk * 60 : 0;
         $nextContact = ($nextCheck > 0 && ($nextMeas <= 0 || $nextCheck < $nextMeas)) ? $nextCheck : $nextMeas;
 
+        $d['last_meas']            = $lastMeas;
         $d['next_meas_ts']         = $nextMeas;
         $d['next_meas_overdue']    = $nextMeas > 0 && $now > $nextMeas + $graceMeas;
         $d['next_contact_ts']      = $nextContact;

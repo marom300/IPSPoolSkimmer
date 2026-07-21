@@ -673,6 +673,7 @@ function render(d) {
   kr.push(kvRow('Heute', num(d.refill_today,0) + ' <small>/ ' + num(d.budget_min,0) + ' min</small>'));
   kr.push(kvRow('Letzte Portion', d.refill_last ? word(rel(d.refill_last)) : '–'));
   kr.push(kvRow('Zuflussrate', d.flow_measured > 0 ? num(d.flow_measured) + ' <small>l/min</small>' : word('nicht kalibriert'), d.flow_measured > 0 ? '' : 'warn'));
+  kr.push(kvRow('Ist-Abstand', num(d.level_cm) + ' <small>cm</small>', d.stale ? 'warn' : ''));
   kr.push(kvRow('Ziel-Abstand', num(d.target_cm) + ' <small>cm</small>'));
   $('kvRefill').innerHTML = kr.join('');
   $('refillMeta').textContent = '';
@@ -696,6 +697,9 @@ function render(d) {
   ks.push(kvRow('WLAN', d.rssi != null ? num(d.rssi,0) + ' <small>dBm</small>' : '–', d.rssi != null && d.rssi < -80 ? 'warn' : ''));
   ks.push(kvRow('Messwert', d.stale ? word('veraltet (stale)') : word('gültig'), d.stale ? 'warn' : 'good'));
   ks.push(kvRow('Zuletzt gesehen', word(rel(d.last_seen)), staleOld ? 'warn' : ''));
+  // Bewusst getrennt von "Zuletzt gesehen": Ein Check-in meldet sich, MISST aber
+  // nicht. Ohne diese Zeile sieht ein frischer Kontakt wie eine frische Messung aus.
+  ks.push(kvRow('Letzte Messung', word(rel(d.last_meas))));
   ks.push(kvRow('Nächster Kontakt', word(fmtNext(d.next_contact_ts, d.next_contact_overdue)), d.next_contact_overdue ? 'warn' : ''));
   ks.push(kvRow('Nächste Messung', word(fmtNext(d.next_meas_ts, d.next_meas_overdue)), d.next_meas_overdue ? 'warn' : ''));
   if (d.cfg_pending) {
@@ -1054,6 +1058,7 @@ function MOCK_DATA() {
     mode: 'daily', wake_hour: 21, wake_min: 0, interval_min: 30, checkin_min: 240,
     offset_cm: 0, n_meas: 10, retry_min: 5, calib_min: 10, use_active_refill: true,
     plaus_min: 2, plaus_max: 12,
+    last_meas: Math.floor(Date.now()/1000) - 4200,
     next_contact_ts: Math.floor(Date.now()/1000) + 47*60, next_contact_overdue: false,
     next_meas_ts: Math.floor(Date.now()/1000) + 5.4*3600, next_meas_overdue: false,
     cfg_pending: true

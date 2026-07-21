@@ -125,7 +125,8 @@ Aufruf, egal woher die Werte stammen.
 | **Füllstand (Abstand)** | `<base>/json` | Gemessener Abstand Sensor→Wasser in cm (inkl. Offset). Größer = weniger Wasser. |
 | **Akkuspannung** / **Akku** | `<base>/json`, `<base>/status` | LiPo-Spannung (V) und grober Ladezustand (%). |
 | **Messwert veraltet** | `<base>/json` (`stale`) | Alarm-Flag: Sensor konnte nicht gültig messen, letzter guter Wert wird weitergemeldet. |
-| **Zuletzt gesehen** | `<base>/json`, `<base>/status` | Zeitstempel der letzten Sensor-Meldung. |
+| **Zuletzt gesehen** | `<base>/json`, `<base>/status` | Zeitstempel der letzten Sensor-Meldung – **jeder** Kontakt, also auch ein reiner Check-in. |
+| **Letzte Messung** *(nur Dashboard)* | berechnet | Zeitstempel der letzten **echten Messung**. Bewusst getrennt von „Zuletzt gesehen": Ein **Check-in** meldet sich zwar (und frischt „Zuletzt gesehen" auf), schaltet den ToF-Sensor aber gar nicht ein und **misst nicht**. Ohne diese Zeile sieht ein frischer Kontakt wie ein frischer Messwert aus. Quelle ist der Änderungszeitstempel der Variable „Füllstand", den ein Check-in nicht anfasst. |
 | **Nächster Kontakt / Nächste Messung** *(nur Dashboard)* | berechnet | Nächste Termine („in 47 min · 00:09"), berechnet aus der **vom Sensor bestätigten** Konfiguration (`config_ack`) – nicht aus den Modul-Properties, denn eine frisch geänderte Einstellung kennt der Sensor erst nach dem nächsten Aufwachen. Färbt sich **orange**, wenn der Termin samt Kulanz (halbes Intervall, mind. 3 min; im Tagesmodus 15 min) überschritten ist – so fällt ein verstummter Sensor sofort auf. |
 | **Konfiguration** *(nur Dashboard, nur bei Bedarf)* | berechnet | Erscheint, solange eine geänderte Einstellung noch nicht vom Sensor übernommen wurde („wird beim nächsten Aufwachen übernommen"). |
 | **WLAN-Signal** | `<base>/status` | RSSI in dBm (ab −80 wird's grenzwertig). |
@@ -265,9 +266,11 @@ Oben rechts schaltest du zwischen drei Ansichten um – direkt verlinkbar über
   laufender Pumpe, Stufe/RPM) → Filter → Rücklauf/Düsen. Der
   **Frischwasser-Strang** leuchtet grün, solange eine Nachfüll-Portion läuft.
 - **Nachfüll-Karte:** Status, Automatik, Auffüll-Modus, Tagesbudget, letzte
-  Portion, Zuflussrate, Ziel-Abstand, Protokollzeile – plus Button
+  Portion, Zuflussrate, **Ist-Abstand** und Ziel-Abstand direkt untereinander
+  (so sieht man den Rückstand auf einen Blick), Protokollzeile – plus Button
   „Sperre quittieren" (erscheint nur bei Status GESPERRT).
-- **Sensor-Karte:** Akku, WLAN, Messwert-Gültigkeit, zuletzt gesehen, Firmware.
+- **Sensor-Karte:** Akku, WLAN, Messwert-Gültigkeit, zuletzt gesehen,
+  **letzte Messung**, nächster Kontakt / nächste Messung, Firmware.
 - **Trends:** Sparklines der letzten 48 h (Füllstand, Akku) aus dem Archiv.
 
 **Aufruf:** `http://<Symcon-IP>:3777/hook/poolskimmer<InstanzID>` – direkt im
