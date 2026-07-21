@@ -334,6 +334,14 @@ footer .spacer { flex: 1; }
 .trend-row polyline { fill:none; stroke: var(--cyan); stroke-width:1.6; opacity:.85; vector-effect: non-scaling-stroke; }
 .trend-row .tarea { fill: rgba(0,212,255,.08); stroke:none; }
 .trend-empty { font-size: clamp(10.5px,3cqi,12px); color: var(--text-faint); line-height:1.5; }
+/* Die Trend-Karte bekommt vom Grid nur den REST der Spaltenhoehe (minmax(0,1fr))
+   und clippt (overflow:hidden) - wachsen die Karten darueber, verschwindet sonst
+   stillschweigend eine Sparkline nach unten raus (kein Scrollbalken, nichts).
+   Deshalb darf hier alles schrumpfen: die Kurven werden flacher statt unsichtbar. */
+#area-t { display:flex; flex-direction:column; min-height:0; }
+#area-t .trend-list { flex:1 1 auto; min-height:0; }
+#area-t .trend-row { display:flex; flex-direction:column; min-height:0; }
+#area-t .trend-row svg { flex:0 1 auto; min-height:9px; }
 .hidden { display:none !important; }
 </style>
 </head>
@@ -673,8 +681,9 @@ function render(d) {
   kr.push(kvRow('Heute', num(d.refill_today,0) + ' <small>/ ' + num(d.budget_min,0) + ' min</small>'));
   kr.push(kvRow('Letzte Portion', d.refill_last ? word(rel(d.refill_last)) : '–'));
   kr.push(kvRow('Zuflussrate', d.flow_measured > 0 ? num(d.flow_measured) + ' <small>l/min</small>' : word('nicht kalibriert'), d.flow_measured > 0 ? '' : 'warn'));
-  kr.push(kvRow('Ist-Abstand', num(d.level_cm) + ' <small>cm</small>', d.stale ? 'warn' : ''));
-  kr.push(kvRow('Ziel-Abstand', num(d.target_cm) + ' <small>cm</small>'));
+  // Ist UND Soll in einer Zeile: spart Hoehe (die Trend-Karte darunter bekommt nur
+  // den Rest der Spalte) und stellt den Vergleich direkt nebeneinander.
+  kr.push(kvRow('Abstand ist / soll', num(d.level_cm) + ' <small>/ ' + num(d.target_cm) + ' cm</small>', d.stale ? 'warn' : ''));
   $('kvRefill').innerHTML = kr.join('');
   $('refillMeta').textContent = '';
   $('ackBtn').classList.toggle('hidden', d.refill_state !== 4);
@@ -696,12 +705,17 @@ function render(d) {
     d.battery_pct != null && d.battery_pct < 20 ? 'crit' : (d.battery_pct != null && d.battery_pct < 40 ? 'warn' : '')));
   ks.push(kvRow('WLAN', d.rssi != null ? num(d.rssi,0) + ' <small>dBm</small>' : '–', d.rssi != null && d.rssi < -80 ? 'warn' : ''));
   ks.push(kvRow('Messwert', d.stale ? word('veraltet (stale)') : word('gültig'), d.stale ? 'warn' : 'good'));
-  ks.push(kvRow('Zuletzt gesehen', word(rel(d.last_seen)), staleOld ? 'warn' : ''));
-  // Bewusst getrennt von "Zuletzt gesehen": Ein Check-in meldet sich, MISST aber
-  // nicht. Ohne diese Zeile sieht ein frischer Kontakt wie eine frische Messung aus.
-  ks.push(kvRow('Letzte Messung', word(rel(d.last_meas))));
-  ks.push(kvRow('Nächster Kontakt', word(fmtNext(d.next_contact_ts, d.next_contact_overdue)), d.next_contact_overdue ? 'warn' : ''));
-  ks.push(kvRow('Nächste Messung', word(fmtNext(d.next_meas_ts, d.next_meas_overdue)), d.next_meas_overdue ? 'warn' : ''));
+  // Kontakt- und Mess-Zeile nur dann BEIDE zeigen, wenn sie sich unterscheiden.
+  // Meist ist jeder Kontakt auch eine Messung -> zwei identische Zeilen waeren nur
+  // Hoehe ohne Information. Taucht die Kontakt-Zeile auf, hat sich der Sensor
+  // gemeldet OHNE zu messen (Check-in) - genau der Fall, den man sehen will.
+  const sSeen = rel(d.last_seen), sMeas = rel(d.last_meas);
+  if (sSeen !== sMeas) ks.push(kvRow('Zuletzt gesehen', word(sSeen), staleOld ? 'warn' : ''));
+  ks.push(kvRow('Letzte Messung', word(sMeas), staleOld ? 'warn' : ''));
+  const sNextC = fmtNext(d.next_contact_ts, d.next_contact_overdue);
+  const sNextM = fmtNext(d.next_meas_ts, d.next_meas_overdue);
+  if (sNextC !== sNextM) ks.push(kvRow('Nächster Kontakt', word(sNextC), d.next_contact_overdue ? 'warn' : ''));
+  ks.push(kvRow('Nächste Messung', word(sNextM), d.next_meas_overdue ? 'warn' : ''));
   if (d.cfg_pending) {
     ks.push(kvRow('Konfiguration', word('wird beim nächsten Aufwachen übernommen'), 'accent'));
   }
